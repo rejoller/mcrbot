@@ -77,7 +77,7 @@ survey_data_storage = {}
 
 districts = ["Абанский р-н", "Ачинский р-н", "Курагинский р-н"]
 response_storage = {}
-bot_token = '6263941409:AAE20_qJIMTw03dBYoH0_xcbugDs_4FzA5Y'
+bot_token = ''
 bot = Bot(token=bot_token)
 dp = Dispatcher(bot, storage=MemoryStorage())
 info_text_storage = {}
@@ -116,7 +116,7 @@ storage2 = redis.Redis(db=0, host='redis-11158.c304.europe-west1-2.gce.cloud.red
 
 
 # Удалите или закомментируйте следующую строку, так как модель не требуется для aiogram
-openai.api_key = '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'
+openai.api_key = ''
 
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
