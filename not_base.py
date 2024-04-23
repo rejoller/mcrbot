@@ -1317,47 +1317,78 @@ async def load_szoreg_values(spreadsheet, redis):
 
         result = await spreadsheet.values_batch_get(range_name)
         rows = result.get('valueRanges', [])[0].get('values', [])
+        max_columns = 16  # предположим, что максимальное количество колонок в данных 16
 
-        await redis.flushdb()
+
         pipeline = redis.pipeline()
         for row in rows:
-            if len(row) >= 5:
-                unique_key = str(row[0]).lower()
-                # Используем пайплайн для группировки всех hset команд
-                for i in range(len(row)):
-                    pipeline.hset(f"szoreg:{unique_key}", f"{i}", json.dumps(row[i]))
-        await pipeline.execute()  # Выполнить все команды в пайплайне одновременно
+            if len(row) > 0:
+                unique_key = str(row[0]).lower()  # предполагаем, что row[0] - это неуникальный ключ
+                full_row = row + [None] * (max_columns - len(row))
+                pipeline.rpush(f"szoreg:{unique_key}", json.dumps(full_row))
+
+        await pipeline.execute()
         print('All SZOREG values loaded successfully.')
+
+        # Извлечение и вывод первых 10 записей из каждого списка
+        keys = await redis.keys('szoreg:*')
+        for key in keys[:10]:  # берем только первые 10 ключей
+            list_length = await redis.llen(key)  # Получаем длину списка
+            list_items = await redis.lrange(key, 0, list_length - 1)  # Получаем все элементы списка
+
+
     except Exception as e:
         print("An error occurred during loading SZOREG values:", e)
 
+async def search_szoreg_values(query, redis):
+    try:
+        query_lower = query.lower()
+        print(f'Поиск данных SZOREG в Redis по ключу: szoreg:{query_lower}...')
 
+        # Используем lrange для извлечения всех элементов списка, хранящихся под ключом 'szoreg:{query_lower}'
+        data_json_list = await redis.lrange(f"szoreg:{query_lower}", 0, -1)
+        if data_json_list:
+            # Преобразуем все JSON строки в объекты Python в одном выражении list comprehension
+            found_values = [json.loads(data_json) for data_json in data_json_list]
+
+            return found_values
+        else:
+            print(f'Данные по запросу "{query_lower}" не найдены.')
+            return None
+    except Exception as e:
+        print(f"Произошла ошибка при поиске значений SZOREG в Redis:", e)
+        return None
+
+
+
+
+'''
 
 async def search_szoreg_values(query, redis):
     try:
-        print(f"Searching for SZOREG values in Redis for key: {query.lower()}...")
-        list_length = await redis.llen(query.lower())  # Получаем количество элементов в списке
-        if list_length > 0:
-            found_values_raw = await redis.lrange(query.lower(), 0, -1)  # Извлекаем все элементы списка
-            found_values = []
-            for item in found_values_raw:
-                row = json.loads(item)
-                # Применяем фильтрацию как в исходной функции
-                if query.lower() == row[0].lower() and (len(row) < 12 or row[11] != 'Исключение'):
-                    found_values.append(row)
+        query_lower = query.lower()
+        print(f'Поиск данных SZOREG в Redis по ключу: szoreg:{query_lower}...')
 
-            if found_values:
-                print(f"Found values for {query.lower()}: {found_values}")
-                return found_values
-            else:
-                print(f"No matching values found for {query.lower()}")
-                return None
-        else:
-            print(f"No values found for {query.lower()}")
+        # Получаем все данные одним вызовом
+        data_json_list = await redis.lrange(f"szoreg:{query_lower}", 0, -1)
+        if not data_json_list:
+            print(f'Данные по запросу "{query_lower}" не найдены.')
             return None
+
+        # Можно сразу вернуть JSON, если дальнейшая обработка не требуется
+        print(f'Найденные данные для "{query_lower}": {data_json_list}')
+        return data_json_list
+
     except Exception as e:
-        print("An error occurred during search SZOREG values in Redis:", e)
+        print(f"Произошла ошибка при поиске значений SZOREG в Redis:", e)
         return None
+
+'''
+
+
+
+
+
 
 
 
@@ -1492,7 +1523,7 @@ async def search_yandex_2023_values(query, spreadsheet):
 
 # Глобальная переменная для хранения всего диапазона данных
 cached_pokazatel_504p_values = None
-
+'''
 async def load_pokazatel_504p_values(spreadsheet):
     global cached_pokazatel_504p_values
     try:
@@ -1517,6 +1548,64 @@ async def search_in_pokazatel_504p(query, spreadsheet):
     except Exception as e:
         print("An error occurred during search_in_pokazatel_504p:", e)
         return []
+'''
+
+async def load_pokazatel_504p_values(spreadsheet, redis):
+    try:
+        print('Loading 504-п values into Redis...')
+        range_name = 'показатель 504-п!A1:K1719'
+        agcm = gspread_asyncio.AsyncioGspreadClientManager(lambda: creds)
+        gc = await agcm.authorize()
+        spreadsheet = await gc.open_by_key(SPREADSHEET_ID_1)
+
+        result = await spreadsheet.values_batch_get(range_name)
+        rows = result.get('valueRanges', [])[0].get('values', [])
+        max_columns = 11
+
+        pipeline = redis.pipeline()
+        for row in rows:
+            if len(row) > 0:
+                unique_key = str(row[0]).lower()
+                full_row = row + [None] * (max_columns - len(row))
+                pipeline.rpush(f"pokazatel_504p:{unique_key}", json.dumps(full_row))
+
+        await pipeline.execute()
+        print('All 504-п values loaded successfully.')
+    except Exception as e:
+        print("An error occurred during loading 504-п values:", e)
+
+
+
+
+async def search_in_pokazatel_504p(query, redis):
+    try:
+        query_lower = query.lower()
+        print(f'Поиск данных 504-п в Redis по ключу: pokazatel_504p:{query_lower}...')
+
+        data_json_list = await redis.lrange(f"pokazatel_504p:{query_lower}", 0, -1)
+        if data_json_list:
+
+            return [json.loads(data_json) for data_json in data_json_list]
+        else:
+            print(f'Данные по запросу "{query_lower}" не найдены.')
+            return None
+    except Exception as e:
+        print(f"Произошла ошибка при поиске значений 504-п в Redis:", e)
+        return None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 '''
@@ -1612,7 +1701,9 @@ async def search_in_ucn2(query, spreadsheet):
     except Exception as e:
         print("An error occurred during search_in_ucn2:", e)
         return None
-'''
+
+
+
 
 async def search_schools_values(query, spreadsheet):
     try:
@@ -1643,6 +1734,64 @@ async def search_schools_values(query, spreadsheet):
     except Exception as e:
         print("An error occurred during search_schools_values:", e)
         return None
+
+'''
+
+async def load_schools_values(spreadsheet, redis):
+    try:
+        print('Loading school data into Redis...')
+        range_name = 'Школы!A1:U2000'
+        agcm = gspread_asyncio.AsyncioGspreadClientManager(lambda: creds)
+        gc = await agcm.authorize()
+        spreadsheet = await gc.open_by_key(SPREADSHEET_ID_1)
+
+        result = await spreadsheet.values_batch_get(range_name)
+        rows = result.get('valueRanges', [])[0].get('values', [])
+        max_columns = 21
+
+        pipeline = redis.pipeline()
+        for row in rows:
+            if len(row) > 0:
+                unique_key = str(row[0]).lower()
+                full_row = [item if item is not None else None for item in row] + [None] * (max_columns - len(row))
+                pipeline.rpush(f"schools:{unique_key}", json.dumps(full_row))
+
+        await pipeline.execute()
+        print('All school values loaded successfully.')
+    except Exception as e:
+        print("An error occurred during loading school values:", e)
+
+
+
+
+async def search_schools_values(query, redis):
+    try:
+        query_lower = query.lower()
+        print(f'Поиск данных о школах в Redis по ключу: schools:{query_lower}...')
+
+        data_json_list = await redis.lrange(f"schools:{query_lower}", 0, -1)
+        if data_json_list:
+            found_values = [json.loads(data_json) for data_json in data_json_list if data_json is not None]
+
+            return found_values
+        else:
+            print(f'Данные по запросу "{query_lower}" не найдены.')
+            return None
+    except Exception as e:
+        print(f"Произошла ошибка при поиске данных о школах в Redis:", e)
+        return None
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 async def get_votes_data(spreadsheet):
@@ -3183,7 +3332,7 @@ async def handle_text(message: types.Message, state: FSMContext):
                 ucn2_values, yandex_2023_values, pokazatel_504p_values, survey_results_values  = await asyncio.gather(
                     search_in_ucn2(found_values[0][4], spreadsheet),
                     search_yandex_2023_values(found_values[0][4], spreadsheet),
-                    search_in_pokazatel_504p(found_values[0][4], spreadsheet),
+                    search_in_pokazatel_504p(found_values[0][4], redis),
                     search_in_results(found_values[0][4], spreadsheet)
                 )
             else:
@@ -3191,7 +3340,7 @@ async def handle_text(message: types.Message, state: FSMContext):
                 ucn2_values, yandex_2023_values, pokazatel_504p_values = await asyncio.gather(
                     search_in_ucn2(found_values[0][4], spreadsheet),
                     search_yandex_2023_values(found_values[0][4], spreadsheet),
-                    search_in_pokazatel_504p(found_values[0][4], spreadsheet)
+                    search_in_pokazatel_504p(found_values[0][4], redis)
                 )
                 survey_results_values = None
 
@@ -3462,7 +3611,7 @@ async def handle_text(message: types.Message, state: FSMContext):
             szoreg_values, schools_values = await asyncio.gather(
 
                 search_szoreg_values(found_values[0][4], redis),
-                search_schools_values(found_values[0][4], spreadsheet)
+                search_schools_values(found_values[0][4], redis)
             )
 
 
@@ -3514,8 +3663,11 @@ async def handle_text(message: types.Message, state: FSMContext):
                 if szoreg_values:
                     szoreg_response = '🏢<b>Учреждения, подключенные по госпрограмме</b>\n\n'
                     for i, row in enumerate(szoreg_values, 1):
+                        if len(row) > 6:
 
-                        szoreg_response += f'\n{i}. <b>Тип:</b> {row[7]}\n<b>аименование:</b> {row[8]}\n<b>Адрес:</b> {row[5]} \n<b>Тип подключения:</b> {row[6]}\n<b>Пропускная способность:</b> {row[9]}\n<b>Контракт:</b> {row[10]}\n'
+                            szoreg_response += f'\n{i}. <b>Тип:</b> {row[7]}\n<b>аименование:</b> {row[8]}\n<b>Адрес:</b> {row[5]} \n<b>Тип подключения:</b> {row[6]}\n<b>Пропускная способность:</b> {row[9]}\n<b>Контракт:</b> {row[10]}\n'
+                        else:
+                            print(f'Строка {i} слишком короткая для обработки: {row}')
 
                         #if len(row) >= 10:
 
@@ -3532,16 +3684,19 @@ async def handle_text(message: types.Message, state: FSMContext):
                     schools_response = '🏫<b>Школы:</b>\n'
                     for i, row in enumerate(schools_values, 1):
                         schools_response += f'\n{i} '
-                        if len(row) > 7:
+                        # Проверяем каждую ячейку перед добавлением в ответ
+                        if len(row) > 7 and row[12] is not None:
                             schools_response += f'<b>{html.escape(row[12])}</b>\n'
-                        if len(row) > 12:
+                        if len(row) > 12 and row[7] is not None:
                             schools_response += f'\n{html.escape(row[7])}\n'
-                        if len(row) > 14:
+                        if len(row) > 14 and row[14] is not None:
                             schools_response += f'\n{html.escape(row[14])}, '
-                        if len(row) > 13:
+                        if len(row) > 13 and row[13] is not None:
                             schools_response += f'{html.escape(row[13])} Мб/с\n'
-                        if len(row) > 20:
+                        if len(row) > 20 and row[20] is not None:
                             schools_response += f'{html.escape(row[20])}'
+                        else:
+                            schools_response += ''
                         schools_response += '\n'
 
                     callback_data = json.dumps({"type": "schools_info", "chat_id": message.chat.id})
@@ -3903,7 +4058,7 @@ import asyncio
 import json
 
 async def load_values(spreadsheet, redis):
-    redis = await init_redis()
+
 
     try:
         print('Loading values into Redis...')
@@ -3928,14 +4083,7 @@ async def load_values(spreadsheet, redis):
         print('All values loaded successfully.')
 
         # Проверка первых 10 ключей для верификации
-        keys = await redis.keys('*')
-        for key in keys[:10]:  # Печать только первых 10 ключей для проверки
-            if key.startswith('town:'):
-                members = await redis.smembers(key)
-                print(f"Key: {key}, Value: {members}")
-            else:
-                value = await redis.get(key)
-                print(f"Key: {key}, Value: {value}")
+
 
     except Exception as e:
         print('Error loading values into Redis:', str(e))
@@ -3947,30 +4095,28 @@ async def load_values(spreadsheet, redis):
 
 
 
+
+
 async def search_values(query, redis):
     normalized_query = normalize_text_v2(query.lower())
-    print(f"Normalized query: {normalized_query}")
 
     # Используем SMEMBERS для получения всех уникальных ключей для города
     unique_keys = await redis.smembers(f"town:{normalized_query}")
-    print(f"Found unique keys for town: {unique_keys}")
 
-    found_values_a = []
-    for unique_key in unique_keys:
-        data_json = await redis.get(f"data:{unique_key}")
-        if data_json:
-            data = json.loads(data_json)
-            found_values_a.append(data)
-            print(f"Data for {unique_key}: {data}")
-        else:
-            print(f"No data found for unique key: {unique_key}")
+    # Получаем все данные за один вызов с использованием mget
+    if unique_keys:
+        keys_to_fetch = [f"data:{key}" for key in unique_keys]
+        data_json_list = await redis.mget(keys_to_fetch)
 
-    if found_values_a:
-        print(f"Returning {len(found_values_a)} entries for {normalized_query}")
+        found_values_a = [json.loads(data_json) for data_json in data_json_list if data_json]
+
+
+
+        return found_values_a
     else:
-        print("No entries found.")
+        print("No unique keys found for the query.")
+        return None
 
-    return found_values_a if found_values_a else None
 
 
 
@@ -4397,6 +4543,7 @@ async def handler_otpusk_message(message, employees_on_vacation):
 @dp.message_handler(state=Form.waiting_for_number)
 async def handle_choice(message: types.Message, state: FSMContext):
     start_time = time.time()
+    redis = await init_redis()
     try:
         data = await state.get_data()
         found_values = data.get('found_values')
@@ -4434,7 +4581,7 @@ async def handle_choice(message: types.Message, state: FSMContext):
         weather_info, yandex_2023_values, pokazatel_504p_values, survey_results_values, ucn2_values = await asyncio.gather(
             get_weather(latitude, longitude, "7cc8daec601b8354e0bc6350592d6f98"),
             search_yandex_2023_values(selected_np[4], spreadsheet),
-            search_in_pokazatel_504p(selected_np[4], spreadsheet),
+            search_in_pokazatel_504p(selected_np[4], redis),
             search_in_results(selected_np[4], spreadsheet),
 
             search_in_ucn2(selected_np[4], spreadsheet)
@@ -4451,10 +4598,10 @@ async def handle_choice(message: types.Message, state: FSMContext):
 
         # Создаем словарь с операторами и их значениями
         operators = {
-            "Tele2": selected_np[39] if len(selected_np) > 39 else None,
-            "Мегафон": selected_np[40] if len(selected_np) > 40 else None,
-            "Билайн": selected_np[41] if len(selected_np) > 41 else None,
-            "МТС": selected_np[42] if len(selected_np) > 42 else None,
+            "    |Tele2": selected_np[39] if len(selected_np) > 39 else None,
+            "    |Мегафон": selected_np[40] if len(selected_np) > 40 else None,
+            "    |Билайн": selected_np[41] if len(selected_np) > 41 else None,
+            "    |МТС": selected_np[42] if len(selected_np) > 42 else None,
         }
 
         operators_response = '\nОценка жителей:\n'
@@ -4514,6 +4661,9 @@ async def handle_choice(message: types.Message, state: FSMContext):
             yandex_2023_response = '\n\n<b>Информация из таблицы 2023</b>\n\n'
             for row in yandex_2023_values:
                 yandex_2023_response += f'Тип подключения: {row[4]}\nОператор: {row[15]}\nСоглашение: {row[7]}\nПодписание соглашения с МЦР: {row[8]}\nПодписание соглашения с АГЗ: {row[9]}\nДата подписания контракта: {row[11]}\nДата установки АМС: {row[12]}\nДата монтажа БС: {row[13]}\nЗапуск услуг: {row[14]}\n\n'
+
+
+
 
         if len(pokazatel_504p_values) > 0:
             for i in range(6, 10):
@@ -4662,8 +4812,8 @@ async def handle_choice(message: types.Message, state: FSMContext):
         szoreg_values, schools_values = await asyncio.gather(
 
 
-            search_szoreg_values(selected_np[4], spreadsheet),
-            search_schools_values(selected_np[4], spreadsheet)
+            search_szoreg_values(selected_np[4], redis),
+            search_schools_values(selected_np[4], redis)
 
         )
 
@@ -4710,9 +4860,11 @@ async def handle_choice(message: types.Message, state: FSMContext):
         if szoreg_values:
             szoreg_response = '🏢<b>Учреждения, подключенные по госпрограмме</b>\n\n'
             for i, row in enumerate(szoreg_values, 1):
+                if len(row) > 6:
 
-                szoreg_response += f'\n{i}. <b>Тип:</b> {row[7]}\n<b>аименование:</b> {row[8]}\n<b>Адрес:</b> {row[5]} \n<b>Тип подключения:</b> {row[6]}\n<b>Пропускная способность:</b> {row[9]}\n<b>Контракт:</b> {row[10]}\n'
-
+                    szoreg_response += f'\n{i}. <b>Тип:</b> {row[7]}\n<b>аименование:</b> {row[8]}\n<b>Адрес:</b> {row[5]} \n<b>Тип подключения:</b> {row[6]}\n<b>Пропускная способность:</b> {row[9]}\n<b>Контракт:</b> {row[10]}\n'
+                else:
+                    print(f'Строка {i} слишком короткая для обработки: {row}')
                # if len(row) >= 11:
 
                  #   szoreg_response += f'<b>Комментарий:</b> {row[11]}\n'
@@ -4726,17 +4878,20 @@ async def handle_choice(message: types.Message, state: FSMContext):
         if schools_values:
             schools_response = '🏫<b>Школы:</b>\n'
             for i, row in enumerate(schools_values, 1):
-                schools_response += f'\n\n{i}. '
-                if len(row) > 7:
+                schools_response += f'\n{i} '
+                # Проверяем каждую ячейку перед добавлением в ответ
+                if len(row) > 7 and row[12] is not None:
                     schools_response += f'<b>{html.escape(row[12])}</b>\n'
-                if len(row) > 12:
+                if len(row) > 12 and row[7] is not None:
                     schools_response += f'\n{html.escape(row[7])}\n'
-                if len(row) > 14:
+                if len(row) > 14 and row[14] is not None:
                     schools_response += f'\n{html.escape(row[14])}, '
-                if len(row) > 13:
+                if len(row) > 13 and row[13] is not None:
                     schools_response += f'{html.escape(row[13])} Мб/с\n'
-                if len(row) > 20:
+                if len(row) > 20 and row[20] is not None:
                     schools_response += f'{html.escape(row[20])}'
+                else:
+                    schools_response += ''
                 schools_response += '\n'
 
             callback_data = json.dumps({"type": "schools_info", "chat_id": message.chat.id})
@@ -4771,7 +4926,9 @@ async def on_startup(dp):
         gc = await agcm.authorize()
         spreadsheet = await gc.open_by_key(SPREADSHEET_ID_1)
         await load_values(spreadsheet, redis)
-        #await load_szoreg_values(spreadsheet, redis)
+        await load_szoreg_values(spreadsheet, redis)
+        await load_pokazatel_504p_values(spreadsheet, redis)
+        await load_schools_values(spreadsheet, redis)
         print('Initialization and data loading complete.')
     except Exception as e:
         print('Failed to initialize and load data:', str(e))
