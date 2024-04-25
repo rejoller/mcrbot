@@ -1,64 +1,30 @@
-import openai
-import aiogram
-import logging
-import asyncio
 import traceback
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
-from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from google.oauth2 import service_account
-from googleapiclient.discovery import build
 from aiogram import executor
 import openpyxl
-from openpyxl import Workbook
-from openpyxl.writer.excel import save_virtual_workbook
 from openpyxl.utils import get_column_letter
-from io import BytesIO
 from aiogram import executor
-import os
-import matplotlib.pyplot as plt
-import numpy as np
-
-import pandas as pd
-import gspread
-import requests
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 
-from html import escape
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 from google.oauth2 import service_account
-import aiohttp
 import gspread_asyncio
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from aiogram.utils.executor import start_webhook
-from aiogram.contrib.fsm_storage.redis import RedisStorage2
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-import markdown
+from google_connections import init_redis, load_szoreg_values, load_yandex_2023_values, load_pokazatel_504p_values, load_ucn2_values, load_schools_values, load_votes_values, load_survey_values, load_values, load_otpusk_data, SPREADSHEET_ID
 
 
-import shutil
 from aiogram import types
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters import Command
-from aiogram.dispatcher.filters.state import State, StatesGroup
 
 from google.oauth2 import service_account
 from openpyxl.styles import PatternFill
 from openpyxl.utils import get_column_letter
-from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
-from io import BytesIO
-import folium
 from aiogram.types import InputFile
-from folium.plugins import MarkerCluster
-import random
-import threading
 
-import requests
-from config import bot_token, SPREADSHEET_ID
+from config import bot_token
 
 response_storage = {}
 bot = Bot(token=bot_token)
@@ -66,7 +32,6 @@ dp = Dispatcher(bot, storage=MemoryStorage())
 info_text_storage = {}
 
 
-from google_connections import init_redis, load_szoreg_values, load_yandex_2023_values, load_pokazatel_504p_values, load_ucn2_values, load_schools_values, load_votes_values, load_survey_values, load_values, load_otpusk_data
 
 
 @dp.message_handler(commands=['help'])
@@ -94,7 +59,6 @@ headers = ['Наименование', 'Население', 'Сотовая с�
 
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from openpyxl.utils import get_column_letter
-from openpyxl import Workbook
 
 
 
@@ -175,142 +139,6 @@ def convert_to_excel(data):
     return buffer
 
 
-
-
-
-
-
-
-
-
-
-
-async def filter_and_send_data(message, filter_func, command):
-    goroda_data = load_goroda_data()
-    headers = ['Наименование населенного пункта', 'Население 2010', 'Население 2020', 'Сотовая связь', 'Программа']
-    filtered_data = [headers]
-    filtered_goroda_data = []
-
-    for row in goroda_data:
-        if filter_func(row):
-            filtered_row = [row[i] if i < len(row) else '' for i in [1, 2, 5, 3, 11]]
-            filtered_data.append(filtered_row)
-            filtered_goroda_data.append(row)
-
-    # Создать карту с маркерами
-    map_with_markers = await create_map_with_markers(filtered_goroda_data)
-    map_filename = f"{command}_map.html"
-    map_with_markers.save(map_filename)
-
-    # Конвертировать данные в формат Excel и отправить
-    buffer = convert_to_excel(filtered_data)
-    filename = f"{command}.xlsx"
-    with open(filename, "wb") as excel_file:
-        excel_file.write(buffer.getvalue())
-
-    with open(filename, "rb") as excel_file:
-        document = InputFile(excel_file)
-        await message.answer_document(document=document, caption="Список населенных пунктов")
-
-    os.remove(filename)
-
-    # Отправить файл с картой
-    # with open(map_filename, "rb") as map_file:
-    #    document = InputFile(map_file)
-    #  bot.send_document(message.chat.id, document=document, caption=map_filename)
-
-    os.remove(map_filename)
-    url = f"https://rejoller.pythonanywhere.com/{command}"
-    await message.answer("Чтобы посмотреть карту, нажмите кнопку ниже", reply_markup=webAppKeyboard(url))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def create_pie_chart(yes_count, no_count, filename):
-    labels = ['Есть', 'Нет']
-    sizes = [yes_count, no_count]
-    colors = ['#2ecc71', '#e74c3c']
-
-    # Создайте объект figure с заданными размерами (ширина, высота) в дюймах
-    plt.figure(figsize=(2, 2))  # Здесь 2.5 дюйма - это ширина и высота диаграммы
-
-    plt.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
-    plt.axis('equal')
-    plt.savefig(filename, dpi=400, bbox_inches='tight')  # Установите разрешение (DPI) изображения и параметр bbox_inches
-    plt.clf()
-
-
-def create_bar_chart(data, filename):
-    labels, yes_values, no_values = zip(*data)
-
-    total_values = [yes + no for yes, no in zip(yes_values, no_values)]
-    yes_percentages = [yes / total * 100 if total != 0 else 0 for yes, total in zip(yes_values, total_values)]
-    no_percentages = [no / total * 100 if total != 0 else 0 for no, total in zip(no_values, total_values)]
-
-    labels = labels[1:]
-    yes_percentages = yes_percentages[1:]
-    no_percentages = no_percentages[1:]
-
-    y = np.arange(len(labels))
-    width = 0.6
-    colors = ['#2ecc71', '#e74c3c']
-
-    fig, ax = plt.subplots(figsize=(12, 16), dpi=300)  # Устанавливаем размер и DPI изображения
-    rects1 = ax.barh(y, yes_percentages, label='Процент подключенных услуг', color=colors[0], align='center')
-    rects2 = ax.barh(y, no_percentages, label='Процент не подключенных услуг', left=yes_percentages, color=colors[1],
-                     align='center')
-
-    ax.set_title('Подключение к ТОРКНД в Красноярском крае')
-    ax.set_yticks(y)
-    ax.set_yticklabels(labels)
-    ax.legend()
-
-    xmin = 0
-    xmax = 100
-    ax.set_xlim([xmin, xmax])
-
-    def autolabel(rects, labels):
-        for rect, label in zip(rects, labels):
-            width = rect.get_width()
-            ax.annotate('{:.1f}%'.format(label),
-                        xy=(width, rect.get_y() + rect.get_height() / 2),
-                        xytext=(3, 0),
-                        textcoords="offset points",
-                        ha='left', va='center')
-
-    autolabel(rects1, yes_percentages)
-    # autolabel(rects2, no_percentages)
-
-    plt.tight_layout()
-    plt.savefig(filename)
-    plt.close()
-
-
-async def search_szofed_values(column_4_value, spreadsheet):
-    result = await spreadsheet.values_batch_get('szofed!A1:M2412')
-    rows = result.get('valueRanges', [])[0].get('values', [])
-    found_values = [row for row in rows if column_4_value.lower() == row[0].lower()]
-    return found_values
-
-
 @dp.message_handler(commands=['otpusk'])
 async def handle_otpusk_command(message: types.Message):
     await message.answer('Загружаю данные')
@@ -352,27 +180,6 @@ async def handle_employees_vacation_command(message: types.Message):
         await message.answer('Сотрудников, начинающих отпуск в ближайшие дни, нет.')
 
 
-@dp.message_handler(commands=['pie_chart'])
-async def handle_pie_chart_command(message: types.Message):
-    await message.answer('Создаю круговую диаграмму')
-    create_pie_chart(20, 80, 'pie_chart.png')
-    with open('pie_chart.png', 'rb') as photo:
-        await message.answer_photo(photo)
-
-
-@dp.message_handler(commands=['bar_chart'])
-async def handle_bar_chart_command(message: types.Message):
-    await message.answer('Создаю гистограмму')
-    data = [
-        ('Район 1', 5, 10),
-        ('Район 2', 10, 15),
-        ('Район 3', 20, 5),
-        ('Район 4', 30, 25),
-        ('Район 5', 50, 20),
-    ]
-    create_bar_chart(data, 'bar_chart.png')
-    with open('bar_chart.png', 'rb') as photo:
-        await message.answer_photo(photo)
 
 
 def escape_markdown(text):
@@ -390,27 +197,13 @@ is_main_menu_button_active = {}
 
 #13
 from handlers import handle_additional_info, handle_szoreg_info, handle_schools_info, handle_survey_chart
-#from create_chart import handle_survey_chart
-
-#@dp.message_handler(Command('text'))
 dp.register_callback_query_handler(handle_additional_info, lambda query: json.loads(query.data)["type"] == "additional_info")
-#dp.register_callback_query_handler(handle_espd_info, lambda query: json.loads(query.data)["type"] == "espd_info")
 dp.register_callback_query_handler(handle_szoreg_info, lambda query: json.loads(query.data)["type"] == "szoreg_info")
 dp.register_callback_query_handler(handle_schools_info, lambda query: json.loads(query.data)["type"] == "schools_info")
-#dp.register_callback_query_handler(handle_digital_ministry_info, lambda query: json.loads(query.data)["type"] == "digital_ministry_info")
-#dp.register_callback_query_handler(handle_digital_ministry_info_post, lambda query: json.loads(query.data)["type"] == "digital_ministry_info_post")
 dp.register_callback_query_handler(handle_survey_chart, lambda query: json.loads(query.data)["type"] == "survey_chart")
 
 
-import difflib
-import asyncio
 
-
-#@dp.message_handler(Command('text'))
-
-
-import random
-from aiogram import types
 
 
 
@@ -418,7 +211,7 @@ from aiogram import types
 user_messages = {}
 
 
-COLUMNS_TO_EXPORT = [1, 2, 3, 6, 7]
+
 
 TABLE_HEADERS = ["Наименование", "Население", "Сотовая связь", "Интернет", "Таксофон"]
 
@@ -459,7 +252,7 @@ async def on_startup(dp):
         await load_ucn2_values(spreadsheet, redis)
         await load_survey_values(spreadsheet, redis)
         await load_votes_values(spreadsheet, redis)
-        await main(redis)
+        
         print('Initialization and data loading complete.')
         
     except Exception as e:

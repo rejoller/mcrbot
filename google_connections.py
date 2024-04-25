@@ -3,7 +3,6 @@ from google.oauth2 import service_account
 import gspread_asyncio
 import re
 from additional import normalize_text_v2, split_message
-from config import SPREADSHEET_ID
 from fuzzywuzzy import fuzz
 import traceback
 from aioredis import Redis
@@ -27,6 +26,7 @@ creds = service_account.Credentials.from_service_account_file(
     SERVICE_ACCOUNT_FILE, scopes=SCOPES)
 
 credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+SPREADSHEET_ID = '1ghoLFQ6Ydbz0QRMgCfAT2_0fktJSNI4HkHIu6qKWWbU'
 
 async def get_authorized_client_and_spreadsheet():
     agcm = gspread_asyncio.AsyncioGspreadClientManager(lambda: creds)

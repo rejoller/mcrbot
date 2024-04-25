@@ -11,12 +11,10 @@ import csv
 import time
 from google_connections import get_authorized_client_and_spreadsheet, search_yandex_2023_values, search_in_pokazatel_504p, search_in_ucn2, search_schools_values, search_survey_results, load_otpusk_data, search_values, search_values_levenshtein, search_szoreg_values, get_value, init_redis
 from openai_file import handle_digital_ministry_info
-from scaner import send_request_to_vision
 import asyncio
-from additional import normalize_text_v2, split_message, create_excel_file_2
+from additional import split_message, create_excel_file_2
 import json
 import html
-from weather import get_weather
 import re
 import logging
 import os
@@ -158,15 +156,11 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
 
 @dp.message_handler(commands=['otpusk'])
 async def handle_otpusk_command(message: types.Message, days_ahead=30):
-    # Загрузка данных из файла с информацией об отпусках
-    print ('отпуск запущен')
-    #await message.reply('Загружаю данные')
+
     await bot.send_message(message.chat.id, '🏝Загружаю️')
     await log_user_data_from_message(message)
     otpusk_data = await load_otpusk_data()
 
-
-    # Получение списка сотрудников, которые сегодня в отпуске и уходят в отпуск в ближайшие 14 дней
     employees_on_vacation, employees_starting_vacation_soon = get_employees_on_vacation(otpusk_data, days_ahead)
 
     response = ""
@@ -188,92 +182,12 @@ async def handle_otpusk_command(message: types.Message, days_ahead=30):
     if not response:
         response = "Сегодня никто не в отпуске, и никто не уходит в отпуск в ближайшие 14 дней."
 
-    #response += f"\n\nЕсли нужен справочник, жми /employee"
 
-    # Отправка запроса в GPT API
-    #gpt_response = await send_request_to_otpusk_command(message.chat.id, response)
-    #print(response)
     messages = split_message(response)
 
-    # Отправка обработанной информации пользователю
     for msg in messages:
-        #await message.reply(msg, parse_mode='Markdown')
+
         await bot.send_message(message.chat.id, msg, parse_mode='Markdown')
-
-
-
-
-
-
-
-
-# Функция которая улавливает все сообщения пользователя
-@dp.message_handler(content_types=types.ContentType.DOCUMENT)
-async def handle_docs(message: types.Message):
-    print('handle_docs')
-    doc_id = message.document.file_id
-    file_info = await bot.get_file(doc_id)
-    downloaded_file = await bot.download_file(file_info.file_path)
-
-    # Создание директории, если она не существует
-    dir_path = '/mcrbot/'
-    os.makedirs(dir_path, exist_ok=True)
-
-    # Сохранение файла на диск
-    file_path = os.path.join(dir_path, 'file.pdf')
-    with open(file_path, 'wb') as f:
-        f.write(downloaded_file.read())
-
-    # Конвертация PDF в список изображений
-    images = convert_from_path(file_path)
-
-    # Создание нового Word документа
-    doc = Document()
-    creds = service_account.Credentials.from_service_account_file('credentials.json')
-
-    client = vision.ImageAnnotatorClient(credentials=creds)
-    full_text = ""
-    for image in images:
-        # Convert PIL Image to Bytes
-        byte_arr = io.BytesIO()
-        image.save(byte_arr, format='PNG')
-        byte_arr = byte_arr.getvalue()
-        image = vision.Image(content=byte_arr)
-
-        # Делаем запрос к Google Cloud Vision API
-        response = client.text_detection(image=image)
-        texts = response.text_annotations
-
-        # Сортируем блоки текста по их вертикальному положению на странице
-        texts.sort(key=lambda text: text.bounding_poly.vertices[0].y)
-
-        # Добавляем каждый блок текста в общий текст
-        for text in texts:
-            normalized_text = unicodedata.normalize('NFKD', text.description)
-            cleaned_text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', normalized_text)
-            full_text += " " + cleaned_text
-
-    # Дополнительная нормализация текста с помощью GPT-3.5-turbo
-    gpt_normalized_text = send_request_to_vision(full_text)
-
-    paragraph = doc.add_paragraph(gpt_normalized_text)
-
-    # Установка стиля и форматирования
-    run = paragraph.runs[0]
-    run.font.name = 'Times New Roman'
-    run.font.size = Pt(14)
-    paragraph_format = paragraph.paragraph_format
-    paragraph_format.alignment = WD_PARAGRAPH_ALIGNMENT.JUSTIFY
-    paragraph_format.line_spacing = 1
-    paragraph_format.first_line_indent = Cm(1.25)
-
-    # Save the Word document to a temporary file
-    doc_path = os.path.join(dir_path, 'temp.docx')
-    doc.save(doc_path)
-
-    # Send the Word document back to the user
-    with open(doc_path, "rb") as doc_file:
-        await bot.send_document(message.chat.id, doc_file)
 
 
 
@@ -305,10 +219,6 @@ async def handle_text(message: types.Message, state: FSMContext):
     gc, spreadsheet = await get_authorized_client_and_spreadsheet()
     redis = await init_redis()
     found_values_a = await search_values(message.text, redis)
-
-
-
-
 
     if not found_values_a:
         # Проверяем метод Левенштейна с 70% совпадениями
@@ -780,23 +690,6 @@ async def handle_choice(message: types.Message, state: FSMContext):
 
         response += votes_response
 
-
-        '''
-        if len(selected_np) > 38:
-            votes = selected_np[34] or "неизвестно"  # Количество голосов находится в 35-ом столбце
-            update_time = selected_np[35] or "неизвестно"  # Время обновления находится в 36-ом столбце
-            rank = selected_np[36] or "неизвестно"  # Рейтинг находится в 37-ом столбце
-            same_votes_np = selected_np[38] or "неизвестно"  # Количество НП с таким же количеством голосов находится в 39-ом столбце
-            if votes != "неизвестно" and update_time != "неизвестно" and rank != "неизвестно" and same_votes_np != "неизвестно":
-                votes_response = f'\n\n<b>Голосование УЦН 2.0 2024</b>\n\n📊Количество голосов: <b>{votes}</b> (такое же количество голосов имеют {same_votes_np} населённых пунктов)\n🏆Место в рейтинге: {rank}\nДата обновления информации: {update_time}'
-
-            else:
-                print("Не все данные для блока голосования были найдены.")
-        response += votes_response
-        '''
-
-
-
         if ucn2_values:
             for row in ucn2_values:
                 ucn2_response = ''
@@ -811,12 +704,8 @@ async def handle_choice(message: types.Message, state: FSMContext):
                 if ucn2_response:  # Если ucn2_response не пуст, добавить вводную строку в начало
                     ucn2_response = '\n\n\n<b>УЦН 2.0 2023</b>\n' + ucn2_response
                     response += ucn2_response
-
-
-
         survey_data_storage[message.chat.id] = survey_results_values
-
-
+        
         try:
             selsovet_info, tanya_sub_info_year, tanya_sub_info_provider, taksofony_info, arctic_info, internet_info, population_2010, population_2020, itog_ucn_2023 = await asyncio.gather(
                 get_value(found_values[index - 1], 20),
@@ -833,17 +722,12 @@ async def handle_choice(message: types.Message, state: FSMContext):
         except Exception as e:
             print(f"Произошла ошибка: {e}")
 
-     #   response = f'<b>{await get_value(found_values[index - 1], 1)}</b> {weather_info}\n\n👥Население (2010 г): {await get_value(found_values[index - 1], 2)} чел.\n👥Население(2020 г): {await get_value(found_values[index - 1], 5)} чел.\n\n<b>Сотовая связь:</b>\n{pokazatel_504p_response}\n{operators_response}\n\nИнтернет: {await get_value(found_values[index - 1], 9)}\n\nКоличество таксофонов: {await get_value(found_values[index - 1], 12)}{ucn2_response}{yandex_2023_response}{votes_response}\n\nЕсли хочешь узнать о голосовании УЦН 2.0 2024 жми /votes\nБот для проведения опросов жителей - <a href="http://t.me/providers_rating_bot">@providers_rating_bot</a>'
-
         response = f'<b>{await get_value(found_values[index - 1], 1)}</b>'
-
+        
         if selsovet_info:
             response += f'\n{selsovet_info}'
-
-
         if arctic_info:
             response += f'\n❄️️арктическая зона❄️️'
-
 
         response += f'\n\n👥население 2010 г:{population_2010} чел.\n👥население 2020 г: {population_2020} чел.'
 
@@ -868,11 +752,6 @@ async def handle_choice(message: types.Message, state: FSMContext):
 
         info_text_storage[message.chat.id] = response
 
-
-
-
-
-
         await bot.send_message(message.chat.id, "<b>Выбранный населенный пункт</b>", parse_mode='HTML', reply_markup=types.ReplyKeyboardRemove())
         await bot.send_location(message.chat.id, latitude, longitude)
 
@@ -886,12 +765,10 @@ async def handle_choice(message: types.Message, state: FSMContext):
 
 
         szoreg_values, schools_values = await asyncio.gather(
-
-
             search_szoreg_values(selected_np[4], redis),
             search_schools_values(selected_np[4], redis)
-
         )
+        
         await state.reset_state()
         inline_keyboard = types.InlineKeyboardMarkup()
 
@@ -910,13 +787,9 @@ async def handle_choice(message: types.Message, state: FSMContext):
             for i, row in enumerate(szoreg_values, 1):
                 if len(row) > 6:
 
-                    szoreg_response += f'\n{i}. <b>Тип:</b> {row[7]}\n<b>аименование:</b> {row[8]}\n<b>Адрес:</b> {row[5]} \n<b>Тип подключения:</b> {row[6]}\n<b>Пропускная способность:</b> {row[9]}\n<b>Контракт:</b> {row[10]}\n'
+                    szoreg_response += f'\n{i}. <b>Тип:</b> {row[7]}\n<b>Наименование:</b> {row[8]}\n<b>Адрес:</b> {row[5]} \n<b>Тип подключения:</b> {row[6]}\n<b>Пропускная способность:</b> {row[9]}\n<b>Контракт:</b> {row[10]}\n'
                 else:
                     print(f'Строка {i} слишком короткая для обработки: {row}')
-               # if len(row) >= 11:
-
-                 #   szoreg_response += f'<b>Комментарий:</b> {row[11]}\n'
-
 
             callback_data = json.dumps({"type": "szoreg_info", "chat_id":message.chat.id})
             szoreg_info_storage[message.chat.id] = szoreg_response
@@ -1152,9 +1025,7 @@ async def create_individual_radar_chart(chat_id, data_df, title):
 
 
 dp.register_callback_query_handler(handle_additional_info, lambda query: json.loads(query.data)["type"] == "additional_info")
-#dp.register_callback_query_handler(handle_espd_info, lambda query: json.loads(query.data)["type"] == "espd_info")
 dp.register_callback_query_handler(handle_szoreg_info, lambda query: json.loads(query.data)["type"] == "szoreg_info")
 dp.register_callback_query_handler(handle_schools_info, lambda query: json.loads(query.data)["type"] == "schools_info")
 dp.register_callback_query_handler(handle_digital_ministry_info, lambda query: json.loads(query.data)["type"] == "digital_ministry_info")
-#dp.register_callback_query_handler(handle_digital_ministry_info_post, lambda query: json.loads(query.data)["type"] == "digital_ministry_info_post")
 dp.register_callback_query_handler(handle_survey_chart, lambda query: json.loads(query.data)["type"] == "survey_chart")
