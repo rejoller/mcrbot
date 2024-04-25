@@ -1,10 +1,10 @@
 
 
 from google_connections import init_redis
-from aiogram import Bot, Dispatcher, types
-from main import bot, storage, main_router
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram import Bot, Dispatcher, types, Router
+from aiogram.fsm.context import FSMContext
+from aiogram.filters import Command, CommandStart
+from aiogram.fsm.state import State, StatesGroup
 from datetime import datetime, timedelta
 import csv
 import time
@@ -40,7 +40,7 @@ schools_info_storage = {}
 message_storage = {}
 survey_data_storage = {}
 response_storage = {}
-
+main_router = Router()
 
 
 
@@ -79,7 +79,7 @@ class Form(StatesGroup):
 
 
 # Стартовое сообщение (когда пользователь нажал /start)
-@dp.message_handler(commands=['start'])
+@main_router.message(CommandStart())
 async def handle_start(message: types.Message):
     user_first_name = message.from_user.first_name
     await message.answer(
@@ -87,8 +87,10 @@ async def handle_start(message: types.Message):
 
 
 # отправка файла с итогами голосования по УЦН 2024 (когда пользователь нажал /votes)
-@dp.message_handler(commands=['votes'])
+@main_router.message(Command("cancel"))
 async def send_votes(message: types.Message):
+    from main import bot
+    from google_connections import get_votes_data
     try:
         gc, spreadsheet = await get_authorized_client_and_spreadsheet()
         data = await get_votes_data(spreadsheet)
@@ -146,9 +148,9 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
     return employees_on_vacation, employees_starting_vacation_soon
 
 
-@dp.message_handler(commands=['otpusk'])
+@main_router.message(Command('otpusk'))
 async def handle_otpusk_command(message: types.Message, days_ahead=30):
-
+    from main import bot
     await bot.send_message(message.chat.id, '🏝Загружаю️')
     await log_user_data_from_message(message)
     otpusk_data = await load_otpusk_data()
@@ -184,12 +186,12 @@ async def handle_otpusk_command(message: types.Message, days_ahead=30):
 
 
 
-@main_router.message()
-async def message_handler(message: types.Message) -> Any: pass
+#@main_router.message()
+#async def message_handler(message: types.Message) -> Any: pass
 
-@dp.message_handler()
+@main_router.message()
 async def handle_text(message: types.Message, state: FSMContext):
-    print('handle_text')
+    from main import bot
     user_state = await state.get_state()
     if user_state == Form.waiting_for_number.state:
         return
@@ -234,9 +236,6 @@ async def handle_text(message: types.Message, state: FSMContext):
     if found_values_a:
         found_values = found_values_a
         await state.update_data(found_values=found_values)
-      #  await bot.send_message(chat_id="430334520", text="Света, ты получаешь минус один балл!")
-       # await bot.send_message(chat_id="964635576", text="Света, ты получаешь минус один балл!")
-
 
 
         if len(found_values) == 1:
@@ -534,8 +533,9 @@ async def handle_text(message: types.Message, state: FSMContext):
 
 
 
-@dp.message_handler(state=Form.waiting_for_number)
+@main_router.message()
 async def handle_choice(message: types.Message, state: FSMContext):
+    from main import bot
     start_time = time.time()
     redis = await init_redis()
     try:
@@ -826,6 +826,7 @@ async def handle_choice(message: types.Message, state: FSMContext):
 
 
 async def handle_additional_info(query):
+    from main import bot
     chat_id = json.loads(query.data)["chat_id"]
     if chat_id in additional_info_storage:
         response = additional_info_storage[chat_id]
@@ -843,6 +844,7 @@ async def handle_additional_info(query):
 
 
 async def handle_szoreg_info(query):
+    from main import bot
     chat_id = json.loads(query.data)["chat_id"]
     if chat_id in szoreg_info_storage:
         response = szoreg_info_storage[chat_id]
@@ -858,6 +860,7 @@ async def handle_szoreg_info(query):
 
 
 async def handle_schools_info(query):
+    from main import bot
     chat_id = json.loads(query.data)["chat_id"]
     if chat_id in schools_info_storage:
         response = schools_info_storage[chat_id]
@@ -932,7 +935,7 @@ async def handle_survey_chart(query):
 
 async def create_individual_radar_chart(chat_id, data_df, title):
     print("create_individual_radar_chart called with data:", data_df)
-
+    from main import bot
     # Создайте новое изображение с белым фоном
     img_width, img_height = 1000, 600
     img = Image.new('RGB', (img_width, img_height), 'white')
@@ -1020,8 +1023,8 @@ async def create_individual_radar_chart(chat_id, data_df, title):
 
 
 
-dp.register_callback_query_handler(handle_additional_info, lambda query: json.loads(query.data)["type"] == "additional_info")
-dp.register_callback_query_handler(handle_szoreg_info, lambda query: json.loads(query.data)["type"] == "szoreg_info")
-dp.register_callback_query_handler(handle_schools_info, lambda query: json.loads(query.data)["type"] == "schools_info")
-dp.register_callback_query_handler(handle_digital_ministry_info, lambda query: json.loads(query.data)["type"] == "digital_ministry_info")
-dp.register_callback_query_handler(handle_survey_chart, lambda query: json.loads(query.data)["type"] == "survey_chart")
+main_router.callback_query(handle_additional_info, lambda query: json.loads(query.data)["type"] == "additional_info")
+main_router.callback_query(handle_szoreg_info, lambda query: json.loads(query.data)["type"] == "szoreg_info")
+main_router.callback_query(handle_schools_info, lambda query: json.loads(query.data)["type"] == "schools_info")
+main_router.callback_query(handle_digital_ministry_info, lambda query: json.loads(query.data)["type"] == "digital_ministry_info")
+main_router.callback_query(handle_survey_chart, lambda query: json.loads(query.data)["type"] == "survey_chart")

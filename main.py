@@ -9,8 +9,18 @@ from aiogram import types
 from google.oauth2 import service_account
 from config import bot_token
 from handlers import handle_additional_info, handle_szoreg_info, handle_schools_info, handle_survey_chart
-from aiogram import Router
+from aiogram import Router, html
+from aiogram.client.default import DefaultBotProperties
+from aiogram.filters import Command, CommandStart
+from aiogram.enums import ParseMode
 from aiogram.types import Message
+import re
+import json
+import time
+import logging
+import asyncio
+import sys
+
 
 
 response_storage = {}
@@ -18,7 +28,7 @@ info_text_storage = {}
 is_main_menu_button_active = {}
 user_messages = {}
 
-bot = Bot.from_token(bot_token)
+bot = Bot.from_token(bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 storage = RedisStorage('redis://localhost:6379', 6379, db=5) 
 main_router = Router()  # storage is not passed here
 
@@ -46,7 +56,7 @@ main_router.register_callback_query_handler(handle_survey_chart, lambda query: j
 
 
 
-@main_router.message.register(commands=['help'])
+@main_router.message(Command('help'))
 async def handle_help_command(message: types.Message):
     await log_user_data_from_message(message)
     help_text = (
@@ -57,14 +67,14 @@ async def handle_help_command(message: types.Message):
 
 
 
-@main_router.message.register(commands=['otpusk'])
+@main_router.message(Command('otpusk'))
 async def handle_otpusk_command(message: types.Message):
     await message.answer('Загружаю данные')
     otpusk_data = await load_otpusk_data()
     await filter_and_send_data(message, otpusk_data)
 
 
-@dp.message_handler(commands=['employees_vacation'])
+@main_router.message(Command('employees_vacation'))
 async def handle_employees_vacation_command(message: types.Message):
     await message.answer('Загружаю данные')
     otpusk_data = await load_otpusk_data()
@@ -120,13 +130,18 @@ async def on_startup():
         traceback.print_exc()
 
 
+async def main() -> None:
+
+    await main_router.start_polling(bot)
+
+
 
 if __name__ == "__main__":
     
-    dispatcher = Dispatcher(bot=bot)
-    dispatcher.include_router(main_router)
-    executor = Executor(dispatcher)
-    executor.start_polling(on_startup=on_startup)
+
+    
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    asyncio.run(main())
 
     
 
