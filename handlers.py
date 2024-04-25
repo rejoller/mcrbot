@@ -1,10 +1,9 @@
 
 
-from google_connections import load_votes_values, search_votes_values, init_redis
+from google_connections import init_redis
 from aiogram import Bot, Dispatcher, types
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from main import bot, storage, main_router
 from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters import Command
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from datetime import datetime, timedelta
 import csv
@@ -21,28 +20,21 @@ import os
 import traceback
 import tempfile
 import shutil
-
 from PIL import Image, ImageDraw, ImageFont
-import matplotlib.pyplot as plt
-from itertools import chain
 import pandas as pd
 import json
-
-
-# Импортируем токен бота из файла config.py
 from config import bot_token
 
 
 
 
-bot = Bot(token=bot_token)
-dp = Dispatcher(bot, storage=MemoryStorage())
+
+
 
 
 info_text_storage = {}
 user_messages = {}
 additional_info_storage = {}
-espd_info_storage = {}
 szoreg_info_storage = {}
 schools_info_storage = {}
 message_storage = {}
@@ -190,6 +182,10 @@ async def handle_otpusk_command(message: types.Message, days_ahead=30):
         await bot.send_message(message.chat.id, msg, parse_mode='Markdown')
 
 
+
+
+@main_router.message()
+async def message_handler(message: types.Message) -> Any: pass
 
 @dp.message_handler()
 async def handle_text(message: types.Message, state: FSMContext):

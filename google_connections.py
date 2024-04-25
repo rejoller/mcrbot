@@ -5,7 +5,7 @@ import re
 from additional import normalize_text_v2, split_message
 from fuzzywuzzy import fuzz
 import traceback
-from aioredis import Redis
+from redis import Redis
 import json
 redis = None
 async def init_redis():

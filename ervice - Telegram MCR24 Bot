@@ -1,5 +1,0 @@
-● telegram_mcr24_bot.service - Telegram MCR24 Bot
-     Loaded: loaded (/etc/systemd/system/telegram_mcr24_bot.service; enabled; vendor preset: enabled)
-     Active: activating (auto-restart) (Result: exit-code) since Thu 2023-12-28 08:54:52 UTC; 1s ago
-    Process: 725937 ExecStart=/home/support/telegram_mcr24_bot/myenv/bin/python /home/support/telegram_mcr24_bot/main.py [0;1;31m(code=exited, status=203/EXEC)[0m
-   Main PID: 725937 (code=exited, status=203/EXEC)
