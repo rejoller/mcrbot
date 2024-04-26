@@ -20,7 +20,7 @@ import time
 import logging
 import asyncio
 import sys
-
+from handlers import main_group, main_router
 
 
 response_storage = {}
@@ -28,9 +28,9 @@ info_text_storage = {}
 is_main_menu_button_active = {}
 user_messages = {}
 
-bot = Bot.from_token(bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-storage = RedisStorage('redis://localhost:6379', 6379, db=5) 
-main_router = Router()  # storage is not passed here
+bot = Bot(bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+storage = RedisStorage.from_url("redis://localhost:6379/5")
+
 
 
 
@@ -48,8 +48,8 @@ def escape_markdown(text):
 main_router.callback_query.register(handle_additional_info, lambda query: json.loads(query.data)["type"] == "additional_info")
 main_router.callback_query.register(handle_szoreg_info, lambda query: json.loads(query.data)["type"] == "szoreg_info")
 
-main_router.register_callback_query_handler(handle_schools_info, lambda query: json.loads(query.data)["type"] == "schools_info")
-main_router.register_callback_query_handler(handle_survey_chart, lambda query: json.loads(query.data)["type"] == "survey_chart")
+main_router.callback_query.register(handle_schools_info, lambda query: json.loads(query.data)["type"] == "schools_info")
+main_router.callback_query.register(handle_survey_chart, lambda query: json.loads(query.data)["type"] == "survey_chart")
 
 
 
@@ -114,6 +114,7 @@ async def on_startup():
         agcm = gspread_asyncio.AsyncioGspreadClientManager(lambda: creds)
         gc = await agcm.authorize()
         spreadsheet = await gc.open_by_key(SPREADSHEET_ID)
+        
         await load_values(spreadsheet, redis)
         await load_szoreg_values(spreadsheet, redis)
         await load_pokazatel_504p_values(spreadsheet, redis)
@@ -123,6 +124,9 @@ async def on_startup():
         await load_survey_values(spreadsheet, redis)
         await load_votes_values(spreadsheet, redis)
         
+        
+
+
         print('Initialization and data loading complete.')
         
     except Exception as e:
@@ -130,18 +134,20 @@ async def on_startup():
         traceback.print_exc()
 
 
-async def main() -> None:
+async def main():
+    bot = Bot(bot_token)
+    dp = Dispatcher()
+    main_group(main_router) 
+    dp.include_router(main_router)
+    await on_startup()
+    print('Бот запущен и готов к приему сообщений')
 
-    await main_router.start_polling(bot)
-
-
+    # Запуск прослушивания обновлений
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    
-
-    
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     asyncio.run(main())
+    
 
     
 

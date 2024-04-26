@@ -3,3 +3,4 @@ credentials.json
 start_bot.sh
 users_data.csv
 myenv3.9/
+env_aiogram3/

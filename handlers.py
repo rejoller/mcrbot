@@ -1,7 +1,7 @@
 
 
 from google_connections import init_redis
-from aiogram import Bot, Dispatcher, types, Router
+from aiogram import Bot, Dispatcher, types, Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.state import State, StatesGroup
@@ -78,50 +78,6 @@ class Form(StatesGroup):
 
 
 
-# Стартовое сообщение (когда пользователь нажал /start)
-@main_router.message(CommandStart())
-async def handle_start(message: types.Message):
-    user_first_name = message.from_user.first_name
-    await message.answer(
-        f'Я бот министерства цифрового развития Красноярского края! \n Введи наименование любого населенного пункта края, чтобы получить информацию о связи в нем. По вопросам обращаться к @rejoller.')
-
-
-# отправка файла с итогами голосования по УЦН 2024 (когда пользователь нажал /votes)
-@main_router.message(Command("cancel"))
-async def send_votes(message: types.Message):
-    from main import bot
-    from google_connections import get_votes_data
-    try:
-        gc, spreadsheet = await get_authorized_client_and_spreadsheet()
-        data = await get_votes_data(spreadsheet)
-        excel_data = create_excel_file_2(data)  # убрали headers здесь
-        await log_user_data_from_message(message)
-        # Сохраняем данные Excel во временный файл
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp:
-            temp.write(excel_data.read())
-            temp_filename = temp.name
-
-        # Переименовываем файл перед отправкой
-        final_filename = "Голосование УЦН 2_0 2024.xlsx"
-        shutil.move(temp_filename, final_filename)
-
-        # Отправляем файл
-        with open(final_filename, "rb") as temp:
-            await bot.send_document(message.chat.id, temp, caption='Информация о голосовании УЦН 2.0 2024')
-
-        # Удаляем файл после отправки
-        os.remove(final_filename)
-
-    except Exception as e:
-        tb = traceback.format_exc()  # Получить трассировку стека
-        print("An error occurred while handling /votes:", tb)  # Печатает трассировку стека
-        await message.reply(f'Произошла ошибка при обработке вашего запроса: {e}\n{tb}')  # Включает ошибку и трассировку стека в ответ пользователю
-
-
-
-
-# Функции для работы команды /otpusk
-
 def get_employees_on_vacation(otpusk_data, days_ahead=3):
     today = datetime.today().date()
     future_vacation_start = today + timedelta(days=days_ahead)
@@ -147,193 +103,613 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
 
     return employees_on_vacation, employees_starting_vacation_soon
 
-
-@main_router.message(Command('otpusk'))
-async def handle_otpusk_command(message: types.Message, days_ahead=30):
-    from main import bot
-    await bot.send_message(message.chat.id, '🏝Загружаю️')
-    await log_user_data_from_message(message)
-    otpusk_data = await load_otpusk_data()
-
-    employees_on_vacation, employees_starting_vacation_soon = get_employees_on_vacation(otpusk_data, days_ahead)
-
-    response = ""
-
-    if employees_on_vacation:
-        response += '*Сегодня в отпуске*😎\n\n'
-        for row in employees_on_vacation:
-            response += f"{row[0]}, {row[1]}\n"
-            response += f"  - Дата начала отпуска: {row[3]}\n"
-            response += f"  - Дата окончания отпуска: {row[4]}\n\n"
-
-    if employees_starting_vacation_soon:
-        response += f"\n*Сотрудники, уходящие в отпуск в ближайшие {days_ahead} дней*\n\n"
-        for emp_row in employees_starting_vacation_soon:
-            response += f"{emp_row[0]}, {emp_row[1]}\n"
-            response += f"  - Дата начала отпуска: {emp_row[3]}\n"
-            response += f"  - Дата окончания отпуска: {emp_row[4]}\n\n"
-
-    if not response:
-        response = "Сегодня никто не в отпуске, и никто не уходит в отпуск в ближайшие 14 дней."
+def main_group(main_router):
+    
+    print('получилось')
+    
+    @main_router.message(F.text == "привет")
+    async def hello(message: types.Message):
+        await message.answer("Я с тобой не разговариваю!")
 
 
-    messages = split_message(response)
+    @main_router.message()
+    async def handle_document(message: types.Message):
+        document = message.document
+        file_path = '' + document.file_name  # Указать путь к директории сохранения
 
-    for msg in messages:
+        # Проверка наличия файла
+        try:
+            await message.bot.download_file_by_id(document.file_id, destination=file_path)
+            await message.answer("Файл сохранен.")
+        except Exception as e:
+            await message.answer(f"Произошла ошибка при сохранении файла: {str(e)}")
+    
 
-        await bot.send_message(message.chat.id, msg, parse_mode='Markdown')
-
-
-
-
-#@main_router.message()
-#async def message_handler(message: types.Message) -> Any: pass
-
-@main_router.message()
-async def handle_text(message: types.Message, state: FSMContext):
-    from main import bot
-    user_state = await state.get_state()
-    if user_state == Form.waiting_for_number.state:
-        return
-
-
-
-
-    global info_text_storage
-
-    user_first_name = message.from_user.first_name
-    await log_user_data_from_message(message)
-    chat_id = message.chat.id
-
-    user_id = message.from_user.id  # Получаем user_id
-
-    votes_response = ""
-    response = ''
-    ucn2_response = ""
-    operators_response = ''
-    survey_results_values = ''
+    # Стартовое сообщение (когда пользователь нажал /start)
+    @main_router.message(CommandStart())
+    async def handle_start(message: types.Message):
+        print('внутри обработчика')
+        user_first_name = message.from_user.first_name
+        await message.answer(
+            f'Я бот министерства цифрового развития Красноярского края! \n Введи наименование любого населенного пункта края, чтобы получить информацию о связи в нем. По вопросам обращаться к @rejoller.')
 
 
-    gc, spreadsheet = await get_authorized_client_and_spreadsheet()
-    redis = await init_redis()
-    found_values_a = await search_values(message.text, redis)
+    # отправка файла с итогами голосования по УЦН 2024 (когда пользователь нажал /votes)
+    @main_router.message(Command("votes"))
+    async def send_votes(message: types.Message):
+        from main import bot
+        from google_connections import get_votes_data
+        try:
+            gc, spreadsheet = await get_authorized_client_and_spreadsheet()
+            data = await get_votes_data(spreadsheet)
+            excel_data = create_excel_file_2(data)  # убрали headers здесь
+            await log_user_data_from_message(message)
+            # Сохраняем данные Excel во временный файл
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp:
+                temp.write(excel_data.read())
+                temp_filename = temp.name
 
-    if not found_values_a:
-        # Проверяем метод Левенштейна с 70% совпадениями
-        levenshtein_matches = await search_values_levenshtein(message.text, spreadsheet, threshold=0.4, max_results=5)
+            # Переименовываем файл перед отправкой
+            final_filename = "Голосование УЦН 2_0 2024.xlsx"
+            shutil.move(temp_filename, final_filename)
 
-        if levenshtein_matches:
-            unique_matches = set(levenshtein_matches)  # Используем множество, чтобы убрать повторяющиеся значения
-            first_match = list(unique_matches)  # Преобразуем обратно в список
-            formatted_matches = "\n".join([f'`{match}`' for match in first_match])  # Создаем строки с обратными кавычками для каждого значения
-            await bot.send_message(message.chat.id, f'Проверьте правильность написания и попробуйте еще раз. Возможно вы имели в виду:\n(нажмите на населенный пункт, чтобы скопировать)\n\n{formatted_matches}', parse_mode='Markdown')
-        else:
-            await bot.send_message(message.chat.id, 'Не удалось найти информацию по данному запросу.\nПроверьте, правильно ли введено название населенного пункта и попробуйте еще раз')
-        return
+            # Отправляем файл
+            with open(final_filename, "rb") as temp:
+                await bot.send_document(message.chat.id, temp, caption='Информация о голосовании УЦН 2.0 2024')
 
- 
-    allowed_users ={1}
-    if found_values_a:
-        found_values = found_values_a
-        await state.update_data(found_values=found_values)
+            # Удаляем файл после отправки
+            os.remove(final_filename)
 
-
-        if len(found_values) == 1:
-            latitude = found_values[0][7]  # Широта находится в столбце H таблицы goroda2.0
-            longitude = found_values[0][8]
-
-            yandex_2023_response = ''
-            pokazatel_504p_lines = []
+        except Exception as e:
+            tb = traceback.format_exc()  # Получить трассировку стека
+            print("An error occurred while handling /votes:", tb)  # Печатает трассировку стека
+            await message.reply(f'Произошла ошибка при обработке вашего запроса: {e}\n{tb}')  # Включает ошибку и трассировку стека в ответ пользователю
 
 
 
-            if len(found_values) > 0 and len(found_values[0]) > 4:
-                # Подразумевается, что если условие выполнено, то можно безопасно обращаться к found_values[5][4]
 
-                ucn2_values, yandex_2023_values, pokazatel_504p_values, survey_results_values  = await asyncio.gather(
-                    search_in_ucn2(found_values[0][4], redis),
-                    search_yandex_2023_values(found_values[0][4], redis),
-                    search_in_pokazatel_504p(found_values[0][4], redis),
-                    search_survey_results(found_values[0][4], redis)
-                )
+    # Функции для работы команды /otpusk
+
+
+
+
+    @main_router.message(Command('otpusk'))
+    async def handle_otpusk_command(message: types.Message, days_ahead=30):
+        from main import bot
+        await bot.send_message(message.chat.id, '🏝Загружаю️')
+        await log_user_data_from_message(message)
+        otpusk_data = await load_otpusk_data()
+
+        employees_on_vacation, employees_starting_vacation_soon = get_employees_on_vacation(otpusk_data, days_ahead)
+
+        response = ""
+
+        if employees_on_vacation:
+            response += '*Сегодня в отпуске*😎\n\n'
+            for row in employees_on_vacation:
+                response += f"{row[0]}, {row[1]}\n"
+                response += f"  - Дата начала отпуска: {row[3]}\n"
+                response += f"  - Дата окончания отпуска: {row[4]}\n\n"
+
+        if employees_starting_vacation_soon:
+            response += f"\n*Сотрудники, уходящие в отпуск в ближайшие {days_ahead} дней*\n\n"
+            for emp_row in employees_starting_vacation_soon:
+                response += f"{emp_row[0]}, {emp_row[1]}\n"
+                response += f"  - Дата начала отпуска: {emp_row[3]}\n"
+                response += f"  - Дата окончания отпуска: {emp_row[4]}\n\n"
+
+        if not response:
+            response = "Сегодня никто не в отпуске, и никто не уходит в отпуск в ближайшие 14 дней."
+
+
+        messages = split_message(response)
+
+        for msg in messages:
+
+            await bot.send_message(message.chat.id, msg, parse_mode='Markdown')
+
+
+
+
+
+
+    @main_router.message()
+    async def handle_text(message: types.Message, state: FSMContext):
+        from main import bot
+        user_state = await state.get_state()
+        if user_state == Form.waiting_for_number.state:
+            return
+
+
+
+
+        global info_text_storage
+
+        user_first_name = message.from_user.first_name
+        await log_user_data_from_message(message)
+        chat_id = message.chat.id
+
+        user_id = message.from_user.id  # Получаем user_id
+
+        votes_response = ""
+        response = ''
+        ucn2_response = ""
+        operators_response = ''
+        survey_results_values = ''
+
+
+        gc, spreadsheet = await get_authorized_client_and_spreadsheet()
+        redis = await init_redis()
+        found_values_a = await search_values(message.text, redis)
+
+        if not found_values_a:
+            # Проверяем метод Левенштейна с 70% совпадениями
+            levenshtein_matches = await search_values_levenshtein(message.text, spreadsheet, threshold=0.4, max_results=5)
+
+            if levenshtein_matches:
+                unique_matches = set(levenshtein_matches)  # Используем множество, чтобы убрать повторяющиеся значения
+                first_match = list(unique_matches)  # Преобразуем обратно в список
+                formatted_matches = "\n".join([f'`{match}`' for match in first_match])  # Создаем строки с обратными кавычками для каждого значения
+                await bot.send_message(message.chat.id, f'Проверьте правильность написания и попробуйте еще раз. Возможно вы имели в виду:\n(нажмите на населенный пункт, чтобы скопировать)\n\n{formatted_matches}', parse_mode='Markdown')
             else:
-                # Если условие не выполнено, значит индекса [5][4] нет, и нужно обойтись без search_in_results
-                ucn2_values, yandex_2023_values, pokazatel_504p_values = await asyncio.gather(
-                    search_in_ucn2(found_values[0][4], redis),
-                    search_yandex_2023_values(found_values[0][4], redis),
-                    search_in_pokazatel_504p(found_values[0][4], redis)
-                )
-                survey_results_values = None
+                await bot.send_message(message.chat.id, 'Не удалось найти информацию по данному запросу.\nПроверьте, правильно ли введено название населенного пункта и попробуйте еще раз')
+            return
+
+    
+        allowed_users ={1}
+        if found_values_a:
+            found_values = found_values_a
+            await state.update_data(found_values=found_values)
 
 
-            if found_values_a:
-                for row in found_values_a:
-                    # Создаем словарь с операторами и их значениями, используя метод get для безопасного обращения к элементам списка
-                    operators = {
-                        "Tele2": row[39] if len(row) > 39 else None,
-                        "Мегафон": row[40] if len(row) > 40 else None,
-                        "Билайн": row[41] if len(row) > 41 else None,
-                        "МТС": row[42] if len(row) > 42 else None,
-                    }
+            if len(found_values) == 1:
+                latitude = found_values[0][7]  # Широта находится в столбце H таблицы goroda2.0
+                longitude = found_values[0][8]
 
-                    operators_response = '\nОценка жителей:\n'
+                yandex_2023_response = ''
+                pokazatel_504p_lines = []
 
-                    # Список для хранения ответов от операторов
-                    operator_responses = []
 
-                    for operator_name, operator_value in operators.items():
 
-                        if operator_value:  # Проверка на наличие значения (не None и не пустая строка)
-                            # Переводим значение в строку, чтобы избежать ошибок при выполнении метода replace
-                            operator_value_str = str(operator_value)
+                if len(found_values) > 0 and len(found_values[0]) > 4:
+                    # Подразумевается, что если условие выполнено, то можно безопасно обращаться к found_values[5][4]
 
-                            # Пытаемся найти качество сигнала
-                            signal_quality = re.search(r'Отсутствует|Низкое|Среднее|Хорошее', operator_value_str, re.IGNORECASE)
-                            if signal_quality:
-                                signal_quality = signal_quality.group()
-                                if "Отсутствует" in signal_quality:
-                                    signal_level = "🔴Отсутствует"
-                                elif "Низкое" in signal_quality:
-                                    signal_level = "🟠Низкое"
-                                elif "Среднее" in signal_quality:
-                                    signal_level = "🟡Среднее"
-                                elif "Хорошее" in signal_quality:
-                                    signal_level = "🟢Хорошее"
+                    ucn2_values, yandex_2023_values, pokazatel_504p_values, survey_results_values  = await asyncio.gather(
+                        search_in_ucn2(found_values[0][4], redis),
+                        search_yandex_2023_values(found_values[0][4], redis),
+                        search_in_pokazatel_504p(found_values[0][4], redis),
+                        search_survey_results(found_values[0][4], redis)
+                    )
+                else:
+                    # Если условие не выполнено, значит индекса [5][4] нет, и нужно обойтись без search_in_results
+                    ucn2_values, yandex_2023_values, pokazatel_504p_values = await asyncio.gather(
+                        search_in_ucn2(found_values[0][4], redis),
+                        search_yandex_2023_values(found_values[0][4], redis),
+                        search_in_pokazatel_504p(found_values[0][4], redis)
+                    )
+                    survey_results_values = None
+
+
+                if found_values_a:
+                    for row in found_values_a:
+                        # Создаем словарь с операторами и их значениями, используя метод get для безопасного обращения к элементам списка
+                        operators = {
+                            "Tele2": row[39] if len(row) > 39 else None,
+                            "Мегафон": row[40] if len(row) > 40 else None,
+                            "Билайн": row[41] if len(row) > 41 else None,
+                            "МТС": row[42] if len(row) > 42 else None,
+                        }
+
+                        operators_response = '\nОценка жителей:\n'
+
+                        # Список для хранения ответов от операторов
+                        operator_responses = []
+
+                        for operator_name, operator_value in operators.items():
+
+                            if operator_value:  # Проверка на наличие значения (не None и не пустая строка)
+                                # Переводим значение в строку, чтобы избежать ошибок при выполнении метода replace
+                                operator_value_str = str(operator_value)
+
+                                # Пытаемся найти качество сигнала
+                                signal_quality = re.search(r'Отсутствует|Низкое|Среднее|Хорошее', operator_value_str, re.IGNORECASE)
+                                if signal_quality:
+                                    signal_quality = signal_quality.group()
+                                    if "Отсутствует" in signal_quality:
+                                        signal_level = "🔴Отсутствует"
+                                    elif "Низкое" in signal_quality:
+                                        signal_level = "🟠Низкое"
+                                    elif "Среднее" in signal_quality:
+                                        signal_level = "🟡Среднее"
+                                    elif "Хорошее" in signal_quality:
+                                        signal_level = "🟢Хорошее"
+                                    else:
+                                        signal_level = "❓Неизвестно"
+
+                                    # Заменяем найденное качество сигнала на его эмодзи-эквивалент
+                                    operator_value_str = operator_value_str.replace(signal_quality, signal_level)
                                 else:
-                                    signal_level = "❓Неизвестно"
+                                    operator_value_str = operator_value_str
 
-                                # Заменяем найденное качество сигнала на его эмодзи-эквивалент
-                                operator_value_str = operator_value_str.replace(signal_quality, signal_level)
+
+                                operator_value_str = operator_value_str.replace("(", " ").replace(")", " ")
+                                operator_responses.append(f'{operator_name}: {operator_value_str}\n')
                             else:
-                                operator_value_str = operator_value_str
 
+                                continue
 
-                            operator_value_str = operator_value_str.replace("(", " ").replace(")", " ")
-                            operator_responses.append(f'{operator_name}: {operator_value_str}\n')
+                        if not operator_responses:
+                            operators_response += 'Нет данных\n'
                         else:
+                            operators_response += ''.join(operator_responses)
 
-                            continue
+                        response += operators_response
 
-                    if not operator_responses:
-                        operators_response += 'Нет данных\n'
+                if yandex_2023_values:
+                    yandex_2023_response = '\n\n\n<b>Информация из таблицы 2023</b>\n\n'
+                    for row in yandex_2023_values:
+                        yandex_2023_response += f'Тип подключения: {row[4]}\nОператор: {row[15]}\nСоглашение: {row[7]}\nПодписание соглашения с МЦР: {row[8]}\nПодписание соглашения с АГЗ: {row[9]}\nДата подписания контракта: {row[11]}\nДата установки АМС: {row[12]}\nДата монтажа БС: {row[13]}\nЗапуск услуг: {row[14]}\n\n'
+                if pokazatel_504p_values:
+                    for index in range(6, 10):
+                        if len(pokazatel_504p_values[0]) > index and pokazatel_504p_values[0][index] and pokazatel_504p_values[0][index].strip():
+                            value = pokazatel_504p_values[0][index]
+                            if "Хорошее" in value:
+                                value = value.replace("Хорошее", "🟢Хорошее")
+                            if "Низкое" in value:
+                                value = value.replace("Низкое", "🟠Низкое")
+                            pokazatel_504p_lines.append(value)
+                if ucn2_values:
+                    for row in ucn2_values:
+                        ucn2_response = ''
+
+                        if 4 < len(row) and row[4]:  # Проверка наличия значения
+                            ucn2_response += '  Информация от Теле2:\n    -СМР: ' + row[4] + '\n'
+                        if 5 < len(row) and row[5]:  # Проверка наличия значения
+                            ucn2_response += '    -Запуск: ' + row[5] + '\n'
+                        if 6 < len(row) and row[6]:  # Проверка наличия значения
+                            ucn2_response += '    -Комментарии: ' + row[6] + '\n'
+
+                        if ucn2_response:  # Если ucn2_response не пуст, добавить вводную строку в начало
+                            ucn2_response = '\n\n\n<b>УЦН 2.0 2023</b>\n' + ucn2_response
+                            response += ucn2_response
+
+                    response += ucn2_response
+                pokazatel_504p_response = "\n".join(pokazatel_504p_lines) if pokazatel_504p_lines else "🔴отсутствует"
+
+                if "4G" in pokazatel_504p_response:
+                    votes_response = ""
+                else:
+
+                    try:
+                        if len(found_values[0]) > 38:  # Убедитесь, что у вас достаточно данных в строке
+                            votes = found_values[0][34] or "неизвестно"
+                            update_time = found_values[0][35] or "неизвестно"
+                            rank = found_values[0][36] or "неизвестно"
+                            same_votes_np = found_values[0][38] or "неизвестно"
+
+                            if votes != "неизвестно" and update_time != "неизвестно" and rank != "неизвестно" and same_votes_np != "неизвестно":
+                                votes_response = f'\n\n<b>Голосование УЦН 2.0 2024</b>\n\n📊Количество голосов: <b>{votes}</b> (такое же количество голосов имеют {same_votes_np} населённых пунктов)\n🏆Место в рейтинге: {rank}\nДата обновления информации: {update_time}'
+                            else:
+                                print("Debug: Не все данные для блока голосования были найдены.")
+                    except Exception as e:
+                        print(f"Debug: Ошибка при извлечении данных о голосах: {e}")
+
+                response = f'<b>{found_values[0][1]}</b>'
+
+                try:
+                    selsovet_info, tanya_sub_info_year, tanya_sub_info_provider, taksofony_info, arctic_info, internet_info, population_2010, population_2020, itog_ucn_2023 = await asyncio.gather(
+                        get_value(found_values[0], 20),
+                        get_value(found_values[0], 13),
+                        get_value(found_values[0], 14),
+                        get_value(found_values[0], 12),
+                        get_value(found_values[0], 6),
+                        get_value(found_values[0], 9),
+                        get_value(found_values[0], 2),
+                        get_value(found_values[0], 5),
+                        get_value(found_values[0], 24),
+                        return_exceptions=True  # Возврат исключений как объектов
+                    )
+                except Exception as e:
+                    print(f"Произошла ошибка: {e}")
+
+
+                if selsovet_info:
+                    response += f'\n{selsovet_info}'
+                if arctic_info:
+                    response += f'\n❄️️арктическая зона❄️️'
+                response += f'\n\n👥население 2010 г:{population_2010} чел.\n👥население 2020 г: {population_2020} чел.'
+
+                if taksofony_info:
+                    response += f'\n☎️таксофон: {taksofony_info}'
+
+                response += f'\n🌐интернет: {internet_info}️'
+                response += f'\n\n📱<b>Сотовая связь:</b>\n{pokazatel_504p_response}'
+
+
+
+
+                if tanya_sub_info_year and tanya_sub_info_provider:
+                    response += f'\n\nнаселенный пункт был подключен в рамках государственной программый "Развитие информационного общества" в {tanya_sub_info_year} году, оператор {tanya_sub_info_provider}'
+
+                if itog_ucn_2023:
+                    response += f'\n\nкомментарий Минцифры России об УЦН 2024: {itog_ucn_2023}'
+                response += f'\n{operators_response}\n'
+                response += f'{yandex_2023_response}{ucn2_response}{votes_response}\nЕсли хочешь узнать о голосовании УЦН 2.0 2024 жми /votes\n\nБот для проведения опросов жителей - <a href="http://t.me/providers_rating_bot">@providers_rating_bot</a>'
+
+                info_text_storage[message.chat.id] = response
+
+
+                await bot.send_location(message.chat.id, latitude, longitude)
+
+
+                messages = split_message(response)
+
+
+
+                for msg in messages:
+                    await bot.send_message(message.chat.id, msg, parse_mode='HTML', disable_web_page_preview=True)
+
+
+                szoreg_values, schools_values = await asyncio.gather(
+
+                    search_szoreg_values(found_values[0][4], redis),
+                    search_schools_values(found_values[0][4], redis)
+                )
+
+
+                inline_keyboard = types.InlineKeyboardMarkup(row_width=3)
+
+                if message.from_user.id in allowed_users:
+                    button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", callback_data=json.dumps({"type": "digital_ministry_info", "chat_id": message.chat.id}))
+                    inline_keyboard.add(button_digital_ministry_info)
+
+
+
+                survey_data_storage[message.chat.id] = survey_results_values
+
+                if survey_results_values:
+                    survey_inline_keyboard = types.InlineKeyboardMarkup()
+                    button_survey_results = types.InlineKeyboardButton("Показать результаты опроса", callback_data=json.dumps({"type": "survey_chart", "chat_id": message.chat.id}))
+                    survey_inline_keyboard.add(button_survey_results)
+                    await bot.send_message(message.chat.id, "Найдены результаты опроса. Хотите посмотреть?", reply_markup=survey_inline_keyboard)
+
+
+
+            #  if szofed_values or espd_values or szoreg_values or schools_values or info_text_storage:
+                
+
+                if szoreg_values:
+                    szoreg_response = '🏢<b>Учреждения, подключенные по госпрограмме</b>\n\n'
+                    for i, row in enumerate(szoreg_values, 1):
+                        if len(row) > 6:
+
+                            szoreg_response += f'\n{i}. <b>Тип:</b> {row[7]}\n<b>аименование:</b> {row[8]}\n<b>Адрес:</b> {row[5]} \n<b>Тип подключения:</b> {row[6]}\n<b>Пропускная способность:</b> {row[9]}\n<b>Контракт:</b> {row[10]}\n'
+                        else:
+                            print(f'Строка {i} слишком короткая для обработки: {row}')
+
+
+
+
+                    callback_data = json.dumps({"type": "szoreg_info", "chat_id": message.chat.id})
+                    szoreg_info_storage[message.chat.id] = szoreg_response
+                    button_szoreg_info = types.InlineKeyboardButton(f"🏢Список учреждений ({len(szoreg_values)})",callback_data=callback_data)
+                    inline_keyboard.add(button_szoreg_info)        
+
+                if schools_values:
+                    schools_response = '🏫<b>Школы:</b>\n'
+                    for i, row in enumerate(schools_values, 1):
+                        schools_response += f'\n{i} '
+                            
+                        if len(row) > 7 and row[12] is not None:
+                            schools_response += f'<b>{html.escape(row[12])}</b>\n'
+                        if len(row) > 12 and row[7] is not None:
+                            schools_response += f'\n{html.escape(row[7])}\n'
+                        if len(row) > 14 and row[14] is not None:
+                            schools_response += f'\n{html.escape(row[14])}, '
+                        if len(row) > 13 and row[13] is not None:
+                            schools_response += f'{html.escape(row[13])} Мб/с\n'
+                        if len(row) > 20 and row[20] is not None:
+                            schools_response += f'{html.escape(row[20])}'
+                        else:
+                            schools_response += ''
+                        schools_response += '\n'
+
+                    callback_data = json.dumps({"type": "schools_info", "chat_id": message.chat.id})
+                    schools_info_storage[message.chat.id] = schools_response
+                    button_schools_info = types.InlineKeyboardButton("🏫Школы",callback_data=callback_data)
+                    inline_keyboard.add(button_schools_info)
+                    
+                    
+                if inline_keyboard.inline_keyboard:
+                    await bot.send_message(message.chat.id, "⬇️Дополнительная информация⬇️", reply_markup=inline_keyboard)
+                else:
+                    await bot.send_message(message.chat.id, "Нет дополнительной информации для отображения.")
+                    
+                    #await bot.send_message(message.chat.id, "⬇️Дополнительная информация⬇️", reply_markup=inline_keyboard)
+            #response_storage[message.chat.id] = response
+
+            
+        if len(found_values) > 1:
+            values = [(await get_value(row, 1), await get_value(row, 2)) for row in found_values]
+            values_with_numbers = [f"{i + 1}. {value[0]}" for i, value in enumerate(values)]
+            msg = '\n'.join(values_with_numbers)
+
+            messages = split_message(f'Найдено несколько населенных пунктов с таким названием. \n\n{msg}')
+
+            for msg in messages:
+                await bot.send_message(message.chat.id, msg)
+
+            buttons = [str(i + 1) for i in range(len(found_values))]
+            buttons.append("Отмена")
+            keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=3)
+
+            keyboard.add(*buttons)
+            await bot.send_message(message.chat.id, 'Выберите номер необходимого населенного пункта:', reply_markup=keyboard)
+            await Form.waiting_for_number.set()
+
+
+
+
+
+
+
+
+
+
+
+    @main_router.message()
+    async def handle_choice(message: types.Message, state: FSMContext):
+        from main import bot
+        start_time = time.time()
+        redis = await init_redis()
+        try:
+            data = await state.get_data()
+            found_values = data.get('found_values')
+
+            index_text = message.text
+            user_first_name = message.from_user.first_name
+            chat_id = message.chat.id
+            response = ""
+            pokazatel_504p_lines = []
+            votes_response = ""
+            yandex_2023_response = ""
+            ucn2_response = ""
+
+            # Проверки ввода пользователя
+            if index_text == "Отмена":
+                await bot.send_message(chat_id, 'Поиск отменен.', reply_markup=types.ReplyKeyboardRemove())
+                await state.reset_state()
+                return
+            if not index_text.isdigit():
+                await bot.send_message(chat_id, 'Введено некорректное значение. Пожалуйста, введите число.')
+                return
+
+            index = int(index_text)
+            if index <= 0 or index > len(found_values):
+                await bot.send_message(chat_id, f'Введено некорректное значение. Пожалуйста, введите число в диапазоне от 1 до {len(found_values)}.')
+                return
+
+            selected_np = found_values[index -1]
+            latitude = selected_np[7]
+            longitude = selected_np[8]
+
+            # Получаем все необходимые данные асинхронно
+            gc, spreadsheet = await get_authorized_client_and_spreadsheet()
+
+            yandex_2023_values, pokazatel_504p_values, survey_results_values, ucn2_values = await asyncio.gather(
+                search_yandex_2023_values(selected_np[4], redis),
+                search_in_pokazatel_504p(selected_np[4], redis),
+                search_survey_results(selected_np[4], redis),
+
+                search_in_ucn2(selected_np[4], redis)
+            )
+
+
+
+
+
+
+
+
+
+
+            # Создаем словарь с операторами и их значениями
+            operators = {
+                "    |Tele2": selected_np[39] if len(selected_np) > 39 else None,
+                "    |Мегафон": selected_np[40] if len(selected_np) > 40 else None,
+                "    |Билайн": selected_np[41] if len(selected_np) > 41 else None,
+                "    |МТС": selected_np[42] if len(selected_np) > 42 else None,
+            }
+
+            operators_response = '\nОценка жителей:\n'
+
+            # Список для хранения ответов от операторов
+            operator_responses = []
+
+            for operator_name, operator_value in operators.items():
+
+                if operator_value:  # Проверка на наличие значения (не None и не пустая строка)
+                    # Переводим значение в строку, чтобы избежать ошибок при выполнении метода replace
+                    operator_value_str = str(operator_value)
+
+                    # Пытаемся найти качество сигнала
+                    signal_quality = re.search(r'Отсутствует|Низкое|Среднее|Хорошее', operator_value_str, re.IGNORECASE)
+                    if signal_quality:
+                        signal_quality = signal_quality.group()
+                        if "Отсутствует" in signal_quality:
+                            signal_level = "🔴Отсутствует"
+                        elif "Низкое" in signal_quality:
+                            signal_level = "🟠Низкое"
+                        elif "Среднее" in signal_quality:
+                            signal_level = "🟡Среднее"
+                        elif "Хорошее" in signal_quality:
+                            signal_level = "🟢Хорошее"
+                        else:
+                            signal_level = "❓Неизвестно"
+
+                        # Заменяем найденное качество сигнала на его эмодзи-эквивалент
+                        operator_value_str = operator_value_str.replace(signal_quality, signal_level)
                     else:
-                        operators_response += ''.join(operator_responses)
+                        operator_value_str = operator_value_str
 
-                    response += operators_response
+                    # Заменяем "(" и ")" на " "
+                    operator_value_str = operator_value_str.replace("(", " ").replace(")", " ")
+                    operator_responses.append(f'{operator_name}: {operator_value_str}\n')
+                else:
+                    # Если нет данных по оператору, не добавляем его в ответ
+                    continue
+
+
+
+            # Если нет данных ни по одному оператору, добавляем сообщение об отсутствии данных
+            if not operator_responses:
+                operators_response += 'Нет данных\n'
+            else:
+                operators_response += ''.join(operator_responses)
+
+            response += operators_response
+
+
+
+
+
 
             if yandex_2023_values:
-                yandex_2023_response = '\n\n\n<b>Информация из таблицы 2023</b>\n\n'
+                yandex_2023_response = '\n\n<b>Информация из таблицы 2023</b>\n\n'
                 for row in yandex_2023_values:
                     yandex_2023_response += f'Тип подключения: {row[4]}\nОператор: {row[15]}\nСоглашение: {row[7]}\nПодписание соглашения с МЦР: {row[8]}\nПодписание соглашения с АГЗ: {row[9]}\nДата подписания контракта: {row[11]}\nДата установки АМС: {row[12]}\nДата монтажа БС: {row[13]}\nЗапуск услуг: {row[14]}\n\n'
-            if pokazatel_504p_values:
-                for index in range(6, 10):
-                    if len(pokazatel_504p_values[0]) > index and pokazatel_504p_values[0][index] and pokazatel_504p_values[0][index].strip():
-                        value = pokazatel_504p_values[0][index]
-                        if "Хорошее" in value:
-                            value = value.replace("Хорошее", "🟢Хорошее")
-                        if "Низкое" in value:
-                            value = value.replace("Низкое", "🟠Низкое")
-                        pokazatel_504p_lines.append(value)
+
+
+
+
+            if len(pokazatel_504p_values) > 0:
+                for i in range(6, 10):
+                    if len(pokazatel_504p_values[0]) > i and pokazatel_504p_values[0][i] and pokazatel_504p_values[0][i].strip():
+                        value = pokazatel_504p_values[0][i]
+                        value = value.replace("Хорошее", "🟢Хорошее").replace("Низкое", "🟠Низкое")
+                        pokazatel_504p_lines.append(f"{value}")
+
+            pokazatel_504p_response = "\n".join(pokazatel_504p_lines) if pokazatel_504p_lines else "🔴отсутствует"
+
+
+
+            if "4G" in pokazatel_504p_response:
+                votes_response = ""
+            else:
+                if len(selected_np) > 38:
+                    votes = selected_np[34] or "неизвестно"  # Количество голосов находится в 35-ом столбце
+                    update_time = selected_np[35] or "неизвестно"  # Время обновления находится в 36-ом столбце
+                    rank = selected_np[36] or "неизвестно"  # Рейтинг находится в 37-ом столбце
+                    same_votes_np = selected_np[38] or "неизвестно"  # Количество НП с таким же количеством голосов находится в 39-ом столбце
+                    if votes != "неизвестно" and update_time != "неизвестно" and rank != "неизвестно" and same_votes_np != "неизвестно":
+                        votes_response = f'\n\n<b>Голосование УЦН 2.0 2024</b>\n\n📊Количество голосов: <b>{votes}</b> (такое же количество голосов имеют {same_votes_np} населённых пунктов)\n🏆Место в рейтинге: {rank}\nДата обновления информации: {update_time}'
+                    else:
+                        print("Debug: Не все данные для блока голосования были найдены.")
+
+
+
+            response += votes_response
+
             if ucn2_values:
                 for row in ucn2_values:
                     ucn2_response = ''
@@ -348,60 +724,38 @@ async def handle_text(message: types.Message, state: FSMContext):
                     if ucn2_response:  # Если ucn2_response не пуст, добавить вводную строку в начало
                         ucn2_response = '\n\n\n<b>УЦН 2.0 2023</b>\n' + ucn2_response
                         response += ucn2_response
-
-                response += ucn2_response
-            pokazatel_504p_response = "\n".join(pokazatel_504p_lines) if pokazatel_504p_lines else "🔴отсутствует"
-
-            if "4G" in pokazatel_504p_response:
-                votes_response = ""
-            else:
-
-                try:
-                    if len(found_values[0]) > 38:  # Убедитесь, что у вас достаточно данных в строке
-                        votes = found_values[0][34] or "неизвестно"
-                        update_time = found_values[0][35] or "неизвестно"
-                        rank = found_values[0][36] or "неизвестно"
-                        same_votes_np = found_values[0][38] or "неизвестно"
-
-                        if votes != "неизвестно" and update_time != "неизвестно" and rank != "неизвестно" and same_votes_np != "неизвестно":
-                            votes_response = f'\n\n<b>Голосование УЦН 2.0 2024</b>\n\n📊Количество голосов: <b>{votes}</b> (такое же количество голосов имеют {same_votes_np} населённых пунктов)\n🏆Место в рейтинге: {rank}\nДата обновления информации: {update_time}'
-                        else:
-                            print("Debug: Не все данные для блока голосования были найдены.")
-                except Exception as e:
-                    print(f"Debug: Ошибка при извлечении данных о голосах: {e}")
-
-            response = f'<b>{found_values[0][1]}</b>'
-
+            survey_data_storage[message.chat.id] = survey_results_values
+            
             try:
                 selsovet_info, tanya_sub_info_year, tanya_sub_info_provider, taksofony_info, arctic_info, internet_info, population_2010, population_2020, itog_ucn_2023 = await asyncio.gather(
-                    get_value(found_values[0], 20),
-                    get_value(found_values[0], 13),
-                    get_value(found_values[0], 14),
-                    get_value(found_values[0], 12),
-                    get_value(found_values[0], 6),
-                    get_value(found_values[0], 9),
-                    get_value(found_values[0], 2),
-                    get_value(found_values[0], 5),
-                    get_value(found_values[0], 24),
+                    get_value(found_values[index - 1], 20),
+                    get_value(found_values[index - 1], 13),
+                    get_value(found_values[index - 1], 14),
+                    get_value(found_values[index - 1], 12),
+                    get_value(found_values[index - 1], 6),
+                    get_value(found_values[index - 1], 9),
+                    get_value(found_values[index - 1], 2),
+                    get_value(found_values[index - 1], 5),
+                    get_value(found_values[index - 1], 24),
                     return_exceptions=True  # Возврат исключений как объектов
                 )
             except Exception as e:
                 print(f"Произошла ошибка: {e}")
 
-
+            response = f'<b>{await get_value(found_values[index - 1], 1)}</b>'
+            
             if selsovet_info:
                 response += f'\n{selsovet_info}'
             if arctic_info:
                 response += f'\n❄️️арктическая зона❄️️'
+
             response += f'\n\n👥население 2010 г:{population_2010} чел.\n👥население 2020 г: {population_2020} чел.'
 
             if taksofony_info:
-                response += f'\n☎️таксофон: {taksofony_info}'
+                    response += f'\n☎️таксофон: {taksofony_info}'
 
             response += f'\n🌐интернет: {internet_info}️'
             response += f'\n\n📱<b>Сотовая связь:</b>\n{pokazatel_504p_response}'
-
-
 
 
             if tanya_sub_info_year and tanya_sub_info_provider:
@@ -409,39 +763,34 @@ async def handle_text(message: types.Message, state: FSMContext):
 
             if itog_ucn_2023:
                 response += f'\n\nкомментарий Минцифры России об УЦН 2024: {itog_ucn_2023}'
+
             response += f'\n{operators_response}\n'
-            response += f'{yandex_2023_response}{ucn2_response}{votes_response}\nЕсли хочешь узнать о голосовании УЦН 2.0 2024 жми /votes\n\nБот для проведения опросов жителей - <a href="http://t.me/providers_rating_bot">@providers_rating_bot</a>'
+
+            response += f'{ucn2_response}{yandex_2023_response}{votes_response}\nЕсли хочешь узнать о голосовании УЦН 2.0 2024 жми /votes\nБот для проведения опросов жителей - <a href="http://t.me/providers_rating_bot">@providers_rating_bot</a>'
+
+
 
             info_text_storage[message.chat.id] = response
 
-
+            await bot.send_message(message.chat.id, "<b>Выбранный населенный пункт</b>", parse_mode='HTML', reply_markup=types.ReplyKeyboardRemove())
             await bot.send_location(message.chat.id, latitude, longitude)
-
 
             messages = split_message(response)
 
 
-
+            #allowed_users = {964635576, 1063749463, 374056328, 572346758, 434872315, 1045874687, 1063749463, 487922464, 371098269, 402748716}
+            allowed_users ={1}
             for msg in messages:
                 await bot.send_message(message.chat.id, msg, parse_mode='HTML', disable_web_page_preview=True)
 
 
             szoreg_values, schools_values = await asyncio.gather(
-
-                search_szoreg_values(found_values[0][4], redis),
-                search_schools_values(found_values[0][4], redis)
+                search_szoreg_values(selected_np[4], redis),
+                search_schools_values(selected_np[4], redis)
             )
-
-
-            inline_keyboard = types.InlineKeyboardMarkup(row_width=3)
-
-            if message.from_user.id in allowed_users:
-                button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", callback_data=json.dumps({"type": "digital_ministry_info", "chat_id": message.chat.id}))
-                inline_keyboard.add(button_digital_ministry_info)
-
-
-
-            survey_data_storage[message.chat.id] = survey_results_values
+            
+            await state.reset_state()
+            inline_keyboard = types.InlineKeyboardMarkup()
 
             if survey_results_values:
                 survey_inline_keyboard = types.InlineKeyboardMarkup()
@@ -449,33 +798,29 @@ async def handle_text(message: types.Message, state: FSMContext):
                 survey_inline_keyboard.add(button_survey_results)
                 await bot.send_message(message.chat.id, "Найдены результаты опроса. Хотите посмотреть?", reply_markup=survey_inline_keyboard)
 
-
-
-          #  if szofed_values or espd_values or szoreg_values or schools_values or info_text_storage:
-            
+            if message.from_user.id in allowed_users:
+                button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", callback_data=json.dumps({"type": "digital_ministry_info", "chat_id": message.chat.id}))
+                inline_keyboard.add(button_digital_ministry_info)
 
             if szoreg_values:
                 szoreg_response = '🏢<b>Учреждения, подключенные по госпрограмме</b>\n\n'
                 for i, row in enumerate(szoreg_values, 1):
                     if len(row) > 6:
 
-                        szoreg_response += f'\n{i}. <b>Тип:</b> {row[7]}\n<b>аименование:</b> {row[8]}\n<b>Адрес:</b> {row[5]} \n<b>Тип подключения:</b> {row[6]}\n<b>Пропускная способность:</b> {row[9]}\n<b>Контракт:</b> {row[10]}\n'
+                        szoreg_response += f'\n{i}. <b>Тип:</b> {row[7]}\n<b>Наименование:</b> {row[8]}\n<b>Адрес:</b> {row[5]} \n<b>Тип подключения:</b> {row[6]}\n<b>Пропускная способность:</b> {row[9]}\n<b>Контракт:</b> {row[10]}\n'
                     else:
                         print(f'Строка {i} слишком короткая для обработки: {row}')
 
-
-
-
-                callback_data = json.dumps({"type": "szoreg_info", "chat_id": message.chat.id})
+                callback_data = json.dumps({"type": "szoreg_info", "chat_id":message.chat.id})
                 szoreg_info_storage[message.chat.id] = szoreg_response
-                button_szoreg_info = types.InlineKeyboardButton(f"🏢Список учреждений ({len(szoreg_values)})",callback_data=callback_data)
-                inline_keyboard.add(button_szoreg_info)        
+                button_szoreg_info = types.InlineKeyboardButton(f"🏢Список учреждений ({len(szoreg_values)})", callback_data=callback_data)
+                inline_keyboard.add(button_szoreg_info)
 
             if schools_values:
                 schools_response = '🏫<b>Школы:</b>\n'
                 for i, row in enumerate(schools_values, 1):
                     schools_response += f'\n{i} '
-                        
+                    # Проверяем каждую ячейку перед добавлением в ответ
                     if len(row) > 7 and row[12] is not None:
                         schools_response += f'<b>{html.escape(row[12])}</b>\n'
                     if len(row) > 12 and row[7] is not None:
@@ -494,335 +839,14 @@ async def handle_text(message: types.Message, state: FSMContext):
                 schools_info_storage[message.chat.id] = schools_response
                 button_schools_info = types.InlineKeyboardButton("🏫Школы",callback_data=callback_data)
                 inline_keyboard.add(button_schools_info)
-                
-                
             if inline_keyboard.inline_keyboard:
                 await bot.send_message(message.chat.id, "⬇️Дополнительная информация⬇️", reply_markup=inline_keyboard)
             else:
                 await bot.send_message(message.chat.id, "Нет дополнительной информации для отображения.")
-                
-                #await bot.send_message(message.chat.id, "⬇️Дополнительная информация⬇️", reply_markup=inline_keyboard)
-        #response_storage[message.chat.id] = response
 
-          
-    if len(found_values) > 1:
-        values = [(await get_value(row, 1), await get_value(row, 2)) for row in found_values]
-        values_with_numbers = [f"{i + 1}. {value[0]}" for i, value in enumerate(values)]
-        msg = '\n'.join(values_with_numbers)
+        except ValueError:
 
-        messages = split_message(f'Найдено несколько населенных пунктов с таким названием. \n\n{msg}')
-
-        for msg in messages:
-            await bot.send_message(message.chat.id, msg)
-
-        buttons = [str(i + 1) for i in range(len(found_values))]
-        buttons.append("Отмена")
-        keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=3)
-
-        keyboard.add(*buttons)
-        await bot.send_message(message.chat.id, 'Выберите номер необходимого населенного пункта:', reply_markup=keyboard)
-        await Form.waiting_for_number.set()
-
-
-
-
-
-
-
-
-
-
-
-@main_router.message()
-async def handle_choice(message: types.Message, state: FSMContext):
-    from main import bot
-    start_time = time.time()
-    redis = await init_redis()
-    try:
-        data = await state.get_data()
-        found_values = data.get('found_values')
-
-        index_text = message.text
-        user_first_name = message.from_user.first_name
-        chat_id = message.chat.id
-        response = ""
-        pokazatel_504p_lines = []
-        votes_response = ""
-        yandex_2023_response = ""
-        ucn2_response = ""
-
-        # Проверки ввода пользователя
-        if index_text == "Отмена":
-            await bot.send_message(chat_id, 'Поиск отменен.', reply_markup=types.ReplyKeyboardRemove())
-            await state.reset_state()
-            return
-        if not index_text.isdigit():
-            await bot.send_message(chat_id, 'Введено некорректное значение. Пожалуйста, введите число.')
-            return
-
-        index = int(index_text)
-        if index <= 0 or index > len(found_values):
-            await bot.send_message(chat_id, f'Введено некорректное значение. Пожалуйста, введите число в диапазоне от 1 до {len(found_values)}.')
-            return
-
-        selected_np = found_values[index -1]
-        latitude = selected_np[7]
-        longitude = selected_np[8]
-
-        # Получаем все необходимые данные асинхронно
-        gc, spreadsheet = await get_authorized_client_and_spreadsheet()
-
-        yandex_2023_values, pokazatel_504p_values, survey_results_values, ucn2_values = await asyncio.gather(
-            search_yandex_2023_values(selected_np[4], redis),
-            search_in_pokazatel_504p(selected_np[4], redis),
-            search_survey_results(selected_np[4], redis),
-
-            search_in_ucn2(selected_np[4], redis)
-        )
-
-
-
-
-
-
-
-
-
-
-        # Создаем словарь с операторами и их значениями
-        operators = {
-            "    |Tele2": selected_np[39] if len(selected_np) > 39 else None,
-            "    |Мегафон": selected_np[40] if len(selected_np) > 40 else None,
-            "    |Билайн": selected_np[41] if len(selected_np) > 41 else None,
-            "    |МТС": selected_np[42] if len(selected_np) > 42 else None,
-        }
-
-        operators_response = '\nОценка жителей:\n'
-
-        # Список для хранения ответов от операторов
-        operator_responses = []
-
-        for operator_name, operator_value in operators.items():
-
-            if operator_value:  # Проверка на наличие значения (не None и не пустая строка)
-                # Переводим значение в строку, чтобы избежать ошибок при выполнении метода replace
-                operator_value_str = str(operator_value)
-
-                # Пытаемся найти качество сигнала
-                signal_quality = re.search(r'Отсутствует|Низкое|Среднее|Хорошее', operator_value_str, re.IGNORECASE)
-                if signal_quality:
-                    signal_quality = signal_quality.group()
-                    if "Отсутствует" in signal_quality:
-                        signal_level = "🔴Отсутствует"
-                    elif "Низкое" in signal_quality:
-                        signal_level = "🟠Низкое"
-                    elif "Среднее" in signal_quality:
-                        signal_level = "🟡Среднее"
-                    elif "Хорошее" in signal_quality:
-                        signal_level = "🟢Хорошее"
-                    else:
-                        signal_level = "❓Неизвестно"
-
-                    # Заменяем найденное качество сигнала на его эмодзи-эквивалент
-                    operator_value_str = operator_value_str.replace(signal_quality, signal_level)
-                else:
-                    operator_value_str = operator_value_str
-
-                # Заменяем "(" и ")" на " "
-                operator_value_str = operator_value_str.replace("(", " ").replace(")", " ")
-                operator_responses.append(f'{operator_name}: {operator_value_str}\n')
-            else:
-                # Если нет данных по оператору, не добавляем его в ответ
-                continue
-
-
-
-        # Если нет данных ни по одному оператору, добавляем сообщение об отсутствии данных
-        if not operator_responses:
-            operators_response += 'Нет данных\n'
-        else:
-            operators_response += ''.join(operator_responses)
-
-        response += operators_response
-
-
-
-
-
-
-        if yandex_2023_values:
-            yandex_2023_response = '\n\n<b>Информация из таблицы 2023</b>\n\n'
-            for row in yandex_2023_values:
-                yandex_2023_response += f'Тип подключения: {row[4]}\nОператор: {row[15]}\nСоглашение: {row[7]}\nПодписание соглашения с МЦР: {row[8]}\nПодписание соглашения с АГЗ: {row[9]}\nДата подписания контракта: {row[11]}\nДата установки АМС: {row[12]}\nДата монтажа БС: {row[13]}\nЗапуск услуг: {row[14]}\n\n'
-
-
-
-
-        if len(pokazatel_504p_values) > 0:
-            for i in range(6, 10):
-                if len(pokazatel_504p_values[0]) > i and pokazatel_504p_values[0][i] and pokazatel_504p_values[0][i].strip():
-                    value = pokazatel_504p_values[0][i]
-                    value = value.replace("Хорошее", "🟢Хорошее").replace("Низкое", "🟠Низкое")
-                    pokazatel_504p_lines.append(f"{value}")
-
-        pokazatel_504p_response = "\n".join(pokazatel_504p_lines) if pokazatel_504p_lines else "🔴отсутствует"
-
-
-
-        if "4G" in pokazatel_504p_response:
-            votes_response = ""
-        else:
-            if len(selected_np) > 38:
-                votes = selected_np[34] or "неизвестно"  # Количество голосов находится в 35-ом столбце
-                update_time = selected_np[35] or "неизвестно"  # Время обновления находится в 36-ом столбце
-                rank = selected_np[36] or "неизвестно"  # Рейтинг находится в 37-ом столбце
-                same_votes_np = selected_np[38] or "неизвестно"  # Количество НП с таким же количеством голосов находится в 39-ом столбце
-                if votes != "неизвестно" and update_time != "неизвестно" and rank != "неизвестно" and same_votes_np != "неизвестно":
-                    votes_response = f'\n\n<b>Голосование УЦН 2.0 2024</b>\n\n📊Количество голосов: <b>{votes}</b> (такое же количество голосов имеют {same_votes_np} населённых пунктов)\n🏆Место в рейтинге: {rank}\nДата обновления информации: {update_time}'
-                else:
-                    print("Debug: Не все данные для блока голосования были найдены.")
-
-
-
-        response += votes_response
-
-        if ucn2_values:
-            for row in ucn2_values:
-                ucn2_response = ''
-
-                if 4 < len(row) and row[4]:  # Проверка наличия значения
-                    ucn2_response += '  Информация от Теле2:\n    -СМР: ' + row[4] + '\n'
-                if 5 < len(row) and row[5]:  # Проверка наличия значения
-                    ucn2_response += '    -Запуск: ' + row[5] + '\n'
-                if 6 < len(row) and row[6]:  # Проверка наличия значения
-                    ucn2_response += '    -Комментарии: ' + row[6] + '\n'
-
-                if ucn2_response:  # Если ucn2_response не пуст, добавить вводную строку в начало
-                    ucn2_response = '\n\n\n<b>УЦН 2.0 2023</b>\n' + ucn2_response
-                    response += ucn2_response
-        survey_data_storage[message.chat.id] = survey_results_values
-        
-        try:
-            selsovet_info, tanya_sub_info_year, tanya_sub_info_provider, taksofony_info, arctic_info, internet_info, population_2010, population_2020, itog_ucn_2023 = await asyncio.gather(
-                get_value(found_values[index - 1], 20),
-                get_value(found_values[index - 1], 13),
-                get_value(found_values[index - 1], 14),
-                get_value(found_values[index - 1], 12),
-                get_value(found_values[index - 1], 6),
-                get_value(found_values[index - 1], 9),
-                get_value(found_values[index - 1], 2),
-                get_value(found_values[index - 1], 5),
-                get_value(found_values[index - 1], 24),
-                return_exceptions=True  # Возврат исключений как объектов
-            )
-        except Exception as e:
-            print(f"Произошла ошибка: {e}")
-
-        response = f'<b>{await get_value(found_values[index - 1], 1)}</b>'
-        
-        if selsovet_info:
-            response += f'\n{selsovet_info}'
-        if arctic_info:
-            response += f'\n❄️️арктическая зона❄️️'
-
-        response += f'\n\n👥население 2010 г:{population_2010} чел.\n👥население 2020 г: {population_2020} чел.'
-
-        if taksofony_info:
-                response += f'\n☎️таксофон: {taksofony_info}'
-
-        response += f'\n🌐интернет: {internet_info}️'
-        response += f'\n\n📱<b>Сотовая связь:</b>\n{pokazatel_504p_response}'
-
-
-        if tanya_sub_info_year and tanya_sub_info_provider:
-            response += f'\n\nнаселенный пункт был подключен в рамках государственной программый "Развитие информационного общества" в {tanya_sub_info_year} году, оператор {tanya_sub_info_provider}'
-
-        if itog_ucn_2023:
-            response += f'\n\nкомментарий Минцифры России об УЦН 2024: {itog_ucn_2023}'
-
-        response += f'\n{operators_response}\n'
-
-        response += f'{ucn2_response}{yandex_2023_response}{votes_response}\nЕсли хочешь узнать о голосовании УЦН 2.0 2024 жми /votes\nБот для проведения опросов жителей - <a href="http://t.me/providers_rating_bot">@providers_rating_bot</a>'
-
-
-
-        info_text_storage[message.chat.id] = response
-
-        await bot.send_message(message.chat.id, "<b>Выбранный населенный пункт</b>", parse_mode='HTML', reply_markup=types.ReplyKeyboardRemove())
-        await bot.send_location(message.chat.id, latitude, longitude)
-
-        messages = split_message(response)
-
-
-        #allowed_users = {964635576, 1063749463, 374056328, 572346758, 434872315, 1045874687, 1063749463, 487922464, 371098269, 402748716}
-        allowed_users ={1}
-        for msg in messages:
-            await bot.send_message(message.chat.id, msg, parse_mode='HTML', disable_web_page_preview=True)
-
-
-        szoreg_values, schools_values = await asyncio.gather(
-            search_szoreg_values(selected_np[4], redis),
-            search_schools_values(selected_np[4], redis)
-        )
-        
-        await state.reset_state()
-        inline_keyboard = types.InlineKeyboardMarkup()
-
-        if survey_results_values:
-            survey_inline_keyboard = types.InlineKeyboardMarkup()
-            button_survey_results = types.InlineKeyboardButton("Показать результаты опроса", callback_data=json.dumps({"type": "survey_chart", "chat_id": message.chat.id}))
-            survey_inline_keyboard.add(button_survey_results)
-            await bot.send_message(message.chat.id, "Найдены результаты опроса. Хотите посмотреть?", reply_markup=survey_inline_keyboard)
-
-        if message.from_user.id in allowed_users:
-            button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", callback_data=json.dumps({"type": "digital_ministry_info", "chat_id": message.chat.id}))
-            inline_keyboard.add(button_digital_ministry_info)
-
-        if szoreg_values:
-            szoreg_response = '🏢<b>Учреждения, подключенные по госпрограмме</b>\n\n'
-            for i, row in enumerate(szoreg_values, 1):
-                if len(row) > 6:
-
-                    szoreg_response += f'\n{i}. <b>Тип:</b> {row[7]}\n<b>Наименование:</b> {row[8]}\n<b>Адрес:</b> {row[5]} \n<b>Тип подключения:</b> {row[6]}\n<b>Пропускная способность:</b> {row[9]}\n<b>Контракт:</b> {row[10]}\n'
-                else:
-                    print(f'Строка {i} слишком короткая для обработки: {row}')
-
-            callback_data = json.dumps({"type": "szoreg_info", "chat_id":message.chat.id})
-            szoreg_info_storage[message.chat.id] = szoreg_response
-            button_szoreg_info = types.InlineKeyboardButton(f"🏢Список учреждений ({len(szoreg_values)})", callback_data=callback_data)
-            inline_keyboard.add(button_szoreg_info)
-
-        if schools_values:
-            schools_response = '🏫<b>Школы:</b>\n'
-            for i, row in enumerate(schools_values, 1):
-                schools_response += f'\n{i} '
-                # Проверяем каждую ячейку перед добавлением в ответ
-                if len(row) > 7 and row[12] is not None:
-                    schools_response += f'<b>{html.escape(row[12])}</b>\n'
-                if len(row) > 12 and row[7] is not None:
-                    schools_response += f'\n{html.escape(row[7])}\n'
-                if len(row) > 14 and row[14] is not None:
-                    schools_response += f'\n{html.escape(row[14])}, '
-                if len(row) > 13 and row[13] is not None:
-                    schools_response += f'{html.escape(row[13])} Мб/с\n'
-                if len(row) > 20 and row[20] is not None:
-                    schools_response += f'{html.escape(row[20])}'
-                else:
-                    schools_response += ''
-                schools_response += '\n'
-
-            callback_data = json.dumps({"type": "schools_info", "chat_id": message.chat.id})
-            schools_info_storage[message.chat.id] = schools_response
-            button_schools_info = types.InlineKeyboardButton("🏫Школы",callback_data=callback_data)
-            inline_keyboard.add(button_schools_info)
-        if inline_keyboard.inline_keyboard:
-            await bot.send_message(message.chat.id, "⬇️Дополнительная информация⬇️", reply_markup=inline_keyboard)
-        else:
-            await bot.send_message(message.chat.id, "Нет дополнительной информации для отображения.")
-
-    except ValueError:
-
-        await bot.send_message(message.chat.id, 'Введено некорректное значение. Пожалуйста, введите число в диапазоне от 1 до {}.'.format(len(found_values)))
+            await bot.send_message(message.chat.id, 'Введено некорректное значение. Пожалуйста, введите число в диапазоне от 1 до {}.'.format(len(found_values)))
 
 
 async def handle_additional_info(query):
@@ -1028,3 +1052,6 @@ main_router.callback_query(handle_szoreg_info, lambda query: json.loads(query.da
 main_router.callback_query(handle_schools_info, lambda query: json.loads(query.data)["type"] == "schools_info")
 main_router.callback_query(handle_digital_ministry_info, lambda query: json.loads(query.data)["type"] == "digital_ministry_info")
 main_router.callback_query(handle_survey_chart, lambda query: json.loads(query.data)["type"] == "survey_chart")
+
+
+__all__ = ["main_router", "main_group"]
