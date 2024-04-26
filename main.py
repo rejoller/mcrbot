@@ -122,7 +122,7 @@ async def on_startup():
         await load_ucn2_values(spreadsheet, redis)
         await load_survey_values(spreadsheet, redis)
         await load_votes_values(spreadsheet, redis)
-        
+
         print('Initialization and data loading complete.')
         
     except Exception as e:

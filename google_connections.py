@@ -401,7 +401,7 @@ async def search_values(query, redis):
         data_json_list = await redis.mget(keys_to_fetch)
 
         found_values_a = sorted([json.loads(data_json) for data_json in data_json_list if data_json])
-        print(f'Data found for keys: {keys_to_fetch}')
+        
 
         return found_values_a
     else:
