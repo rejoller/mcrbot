@@ -1,10 +1,10 @@
 
-
 from google_connections import init_redis
 from aiogram import Bot, Dispatcher, types, Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from datetime import datetime, timedelta
 import csv
 import time
@@ -103,116 +103,26 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
 
     return employees_on_vacation, employees_starting_vacation_soon
 
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+
+
 def main_group(main_router):
     
     print('получилось')
     
-    @main_router.message(F.text == "привет")
-    async def hello(message: types.Message):
-        await message.answer("Я с тобой не разговариваю!")
-
-
-    @main_router.message()
-    async def handle_document(message: types.Message):
-        document = message.document
-        file_path = '' + document.file_name  # Указать путь к директории сохранения
-
-        # Проверка наличия файла
-        try:
-            await message.bot.download_file_by_id(document.file_id, destination=file_path)
-            await message.answer("Файл сохранен.")
-        except Exception as e:
-            await message.answer(f"Произошла ошибка при сохранении файла: {str(e)}")
-    
-
-    # Стартовое сообщение (когда пользователь нажал /start)
     @main_router.message(CommandStart())
     async def handle_start(message: types.Message):
+        
+        
         print('внутри обработчика')
         user_first_name = message.from_user.first_name
         await message.answer(
             f'Я бот министерства цифрового развития Красноярского края! \n Введи наименование любого населенного пункта края, чтобы получить информацию о связи в нем. По вопросам обращаться к @rejoller.')
+        
 
-
-    # отправка файла с итогами голосования по УЦН 2024 (когда пользователь нажал /votes)
-    @main_router.message(Command("votes"))
-    async def send_votes(message: types.Message):
-        from main import bot
-        from google_connections import get_votes_data
-        try:
-            gc, spreadsheet = await get_authorized_client_and_spreadsheet()
-            data = await get_votes_data(spreadsheet)
-            excel_data = create_excel_file_2(data)  # убрали headers здесь
-            await log_user_data_from_message(message)
-            # Сохраняем данные Excel во временный файл
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp:
-                temp.write(excel_data.read())
-                temp_filename = temp.name
-
-            # Переименовываем файл перед отправкой
-            final_filename = "Голосование УЦН 2_0 2024.xlsx"
-            shutil.move(temp_filename, final_filename)
-
-            # Отправляем файл
-            with open(final_filename, "rb") as temp:
-                await bot.send_document(message.chat.id, temp, caption='Информация о голосовании УЦН 2.0 2024')
-
-            # Удаляем файл после отправки
-            os.remove(final_filename)
-
-        except Exception as e:
-            tb = traceback.format_exc()  # Получить трассировку стека
-            print("An error occurred while handling /votes:", tb)  # Печатает трассировку стека
-            await message.reply(f'Произошла ошибка при обработке вашего запроса: {e}\n{tb}')  # Включает ошибку и трассировку стека в ответ пользователю
-
-
-
-
-    # Функции для работы команды /otpusk
-
-
-
-
-    @main_router.message(Command('otpusk'))
-    async def handle_otpusk_command(message: types.Message, days_ahead=30):
-        from main import bot
-        await bot.send_message(message.chat.id, '🏝Загружаю️')
-        await log_user_data_from_message(message)
-        otpusk_data = await load_otpusk_data()
-
-        employees_on_vacation, employees_starting_vacation_soon = get_employees_on_vacation(otpusk_data, days_ahead)
-
-        response = ""
-
-        if employees_on_vacation:
-            response += '*Сегодня в отпуске*😎\n\n'
-            for row in employees_on_vacation:
-                response += f"{row[0]}, {row[1]}\n"
-                response += f"  - Дата начала отпуска: {row[3]}\n"
-                response += f"  - Дата окончания отпуска: {row[4]}\n\n"
-
-        if employees_starting_vacation_soon:
-            response += f"\n*Сотрудники, уходящие в отпуск в ближайшие {days_ahead} дней*\n\n"
-            for emp_row in employees_starting_vacation_soon:
-                response += f"{emp_row[0]}, {emp_row[1]}\n"
-                response += f"  - Дата начала отпуска: {emp_row[3]}\n"
-                response += f"  - Дата окончания отпуска: {emp_row[4]}\n\n"
-
-        if not response:
-            response = "Сегодня никто не в отпуске, и никто не уходит в отпуск в ближайшие 14 дней."
-
-
-        messages = split_message(response)
-
-        for msg in messages:
-
-            await bot.send_message(message.chat.id, msg, parse_mode='Markdown')
-
-
-
-
-
-
+    
     @main_router.message()
     async def handle_text(message: types.Message, state: FSMContext):
         from main import bot
@@ -457,21 +367,33 @@ def main_group(main_router):
                 )
 
 
-                inline_keyboard = types.InlineKeyboardMarkup(row_width=3)
+                
+
+                #if message.from_user.id in allowed_users:
+                   # button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", callback_data=json.dumps({"type": "digital_ministry_info", "chat_id": message.chat.id}))
+                   # inline_keyboard.add(button_digital_ministry_info)
+                 #   button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", 'digital_ministry_info')
+                  #  inline_keyboard.add(button_digital_ministry_info)
+
 
                 if message.from_user.id in allowed_users:
-                    button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", callback_data=json.dumps({"type": "digital_ministry_info", "chat_id": message.chat.id}))
+                    button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", callback_data="digital_ministry_info")
                     inline_keyboard.add(button_digital_ministry_info)
 
 
 
+              
+
+                builder = InlineKeyboardBuilder()
                 survey_data_storage[message.chat.id] = survey_results_values
 
                 if survey_results_values:
-                    survey_inline_keyboard = types.InlineKeyboardMarkup()
-                    button_survey_results = types.InlineKeyboardButton("Показать результаты опроса", callback_data=json.dumps({"type": "survey_chart", "chat_id": message.chat.id}))
-                    survey_inline_keyboard.add(button_survey_results)
-                    await bot.send_message(message.chat.id, "Найдены результаты опроса. Хотите посмотреть?", reply_markup=survey_inline_keyboard)
+                    
+                    markup = InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text="Показать результаты опроса", ccallback_data=json.dumps({"type": "survey_chart", "chat_id": message.chat.id}))]
+                    ])
+                    builder.attach(InlineKeyboardBuilder.from_markup(markup))
+                    await message.answer("Найдены результаты опроса. Хотите посмотреть?", reply_markup=builder.as_markup())
 
 
 
@@ -490,10 +412,15 @@ def main_group(main_router):
 
 
 
-                    callback_data = json.dumps({"type": "szoreg_info", "chat_id": message.chat.id})
+                    
                     szoreg_info_storage[message.chat.id] = szoreg_response
-                    button_szoreg_info = types.InlineKeyboardButton(f"🏢Список учреждений ({len(szoreg_values)})",callback_data=callback_data)
-                    inline_keyboard.add(button_szoreg_info)        
+                    markup = InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text=f"🏢Список учреждений ({len(szoreg_values)})", callback_data = json.dumps({"type": "szoreg_info", "chat_id": message.chat.id}))]
+                    ])
+                    builder.attach(InlineKeyboardBuilder.from_markup(markup))
+                    
+
+
 
                 if schools_values:
                     schools_response = '🏫<b>Школы:</b>\n'
@@ -514,14 +441,27 @@ def main_group(main_router):
                             schools_response += ''
                         schools_response += '\n'
 
-                    callback_data = json.dumps({"type": "schools_info", "chat_id": message.chat.id})
+                    
+                    
+                   
+
+
+
+
+
                     schools_info_storage[message.chat.id] = schools_response
-                    button_schools_info = types.InlineKeyboardButton("🏫Школы",callback_data=callback_data)
-                    inline_keyboard.add(button_schools_info)
+                    markup = InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text=f"🏫Школы({len(schools_values)})", callback_data = json.dumps({"type": "schools_info", "chat_id": message.chat.id}))]
+                    ])
+                    builder.attach(InlineKeyboardBuilder.from_markup(markup))
+
+
+
                     
                     
-                if inline_keyboard.inline_keyboard:
-                    await bot.send_message(message.chat.id, "⬇️Дополнительная информация⬇️", reply_markup=inline_keyboard)
+                if markup:
+                    await message.answer("доп инфо", reply_markup=builder.as_markup())
+                    #await bot.send_message(message.chat.id, "⬇️Дополнительная информация⬇️", reply_markup=inline_keyboard)
                 else:
                     await bot.send_message(message.chat.id, "Нет дополнительной информации для отображения.")
                     
@@ -848,6 +788,92 @@ def main_group(main_router):
 
             await bot.send_message(message.chat.id, 'Введено некорректное значение. Пожалуйста, введите число в диапазоне от 1 до {}.'.format(len(found_values)))
 
+    @main_router.message(F.text == "привет")
+    async def hello(message: types.Message):
+        await message.answer("Я с тобой не разговариваю!")
+
+
+    
+    
+
+    # Стартовое сообщение (когда пользователь нажал /start)
+    
+
+    # отправка файла с итогами голосования по УЦН 2024 (когда пользователь нажал /votes)
+    @main_router.message(Command("votes"))
+    async def send_votes(message: types.Message):
+        from main import bot
+        from google_connections import get_votes_data
+        try:
+            gc, spreadsheet = await get_authorized_client_and_spreadsheet()
+            data = await get_votes_data(spreadsheet)
+            excel_data = create_excel_file_2(data)  # убрали headers здесь
+            await log_user_data_from_message(message)
+            # Сохраняем данные Excel во временный файл
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp:
+                temp.write(excel_data.read())
+                temp_filename = temp.name
+
+            # Переименовываем файл перед отправкой
+            final_filename = "Голосование УЦН 2_0 2024.xlsx"
+            shutil.move(temp_filename, final_filename)
+
+            # Отправляем файл
+            with open(final_filename, "rb") as temp:
+                await bot.send_document(message.chat.id, temp, caption='Информация о голосовании УЦН 2.0 2024')
+
+            # Удаляем файл после отправки
+            os.remove(final_filename)
+
+        except Exception as e:
+            tb = traceback.format_exc()  # Получить трассировку стека
+            print("An error occurred while handling /votes:", tb)  # Печатает трассировку стека
+            await message.reply(f'Произошла ошибка при обработке вашего запроса: {e}\n{tb}')  # Включает ошибку и трассировку стека в ответ пользователю
+
+
+
+
+    # Функции для работы команды /otpusk
+
+
+
+
+    @main_router.message(Command('otpusk'))
+    async def handle_otpusk_command(message: types.Message, days_ahead=30):
+        from main import bot
+        await bot.send_message(message.chat.id, '🏝Загружаю️')
+        await log_user_data_from_message(message)
+        otpusk_data = await load_otpusk_data()
+
+        employees_on_vacation, employees_starting_vacation_soon = get_employees_on_vacation(otpusk_data, days_ahead)
+
+        response = ""
+
+        if employees_on_vacation:
+            response += '*Сегодня в отпуске*😎\n\n'
+            for row in employees_on_vacation:
+                response += f"{row[0]}, {row[1]}\n"
+                response += f"  - Дата начала отпуска: {row[3]}\n"
+                response += f"  - Дата окончания отпуска: {row[4]}\n\n"
+
+        if employees_starting_vacation_soon:
+            response += f"\n*Сотрудники, уходящие в отпуск в ближайшие {days_ahead} дней*\n\n"
+            for emp_row in employees_starting_vacation_soon:
+                response += f"{emp_row[0]}, {emp_row[1]}\n"
+                response += f"  - Дата начала отпуска: {emp_row[3]}\n"
+                response += f"  - Дата окончания отпуска: {emp_row[4]}\n\n"
+
+        if not response:
+            response = "Сегодня никто не в отпуске, и никто не уходит в отпуск в ближайшие 14 дней."
+
+
+        messages = split_message(response)
+
+        for msg in messages:
+
+            await bot.send_message(message.chat.id, msg, parse_mode='Markdown')
+
+
 
 async def handle_additional_info(query):
     from main import bot
@@ -867,20 +893,29 @@ async def handle_additional_info(query):
 
 
 
+import json
+
 async def handle_szoreg_info(query):
     from main import bot
     chat_id = json.loads(query.data)["chat_id"]
-    if chat_id in szoreg_info_storage:
-        response = szoreg_info_storage[chat_id]
-        messages = split_message(response)
+    response = szoreg_info_storage[chat_id]
+    messages = split_message(response)
+    
+    try:
         for message_group in messages:
             msg = ''.join(message_group)
             if msg.strip():  # Проверка, что сообщение не пустое
+                
                 await bot.send_message(chat_id, msg, parse_mode='HTML')
+            else:
+                print(f"Skipped empty message for chat ID {chat_id}")
 
         await bot.answer_callback_query(query.id)
-    else:
-        await bot.answer_callback_query(query.id, "Информация из таблицы СЗО (региональный контракт) недоступна.")
+        print(f"Callback query answered for chat ID {chat_id}")
+    except:
+        print(f"Callback query didn't answer for chat ID {chat_id}")
+
+    
 
 
 async def handle_schools_info(query):
@@ -941,15 +976,11 @@ async def handle_survey_chart(query):
         print("DataFrame created with data:", data_df)
 
         title = "Результаты опроса"  # Установите нужный заголовок для графика
-
-        # Перебираем все строки в DataFrame
-                # Перебираем все строки в DataFrame
-      #  for idx, row in data_df.iterrows():
         try:
-            #print(f"Calling create_individual_radar_chart for row {idx}...")
+            
             await create_individual_radar_chart(chat_id, data_df, title)  # передаем весь DataFrame, а не одну строку
         except Exception as e:
-            print("An error occurred:", e)
+            
             logging.error("An error occurred: %s", e, exc_info=True)
 
     else:
@@ -1048,7 +1079,7 @@ async def create_individual_radar_chart(chat_id, data_df, title):
 
 
 main_router.callback_query(handle_additional_info, lambda query: json.loads(query.data)["type"] == "additional_info")
-main_router.callback_query(handle_szoreg_info, lambda query: json.loads(query.data)["type"] == "szoreg_info")
+#main_router.callback_query(handle_szoreg_info, lambda query: json.loads(query.data)["type"] == "szoreg_info")
 main_router.callback_query(handle_schools_info, lambda query: json.loads(query.data)["type"] == "schools_info")
 main_router.callback_query(handle_digital_ministry_info, lambda query: json.loads(query.data)["type"] == "digital_ministry_info")
 main_router.callback_query(handle_survey_chart, lambda query: json.loads(query.data)["type"] == "survey_chart")
