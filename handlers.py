@@ -1,8 +1,10 @@
 
-from google_connections import init_redis
+
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram import Bot, Dispatcher, types, Router, F
 from aiogram.fsm.context import FSMContext
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import Command, CommandStart, StateFilter
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import Message
@@ -24,13 +26,7 @@ import shutil
 from PIL import Image, ImageDraw, ImageFont
 import pandas as pd
 import json
-#from config import bot_token
-
-
-
-
-
-
+# from config import bot_token
 
 
 info_text_storage = {}
@@ -42,7 +38,7 @@ message_storage = {}
 survey_data_storage = {}
 response_storage = {}
 main_router = Router()
-
+select_number_router = Router()
 
 
 # Функции для логирования действий пользователей
@@ -54,16 +50,20 @@ def log_user_data(user_id, first_name, last_name, username, message_text):
     try:
         with open(file_path, 'x', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['Timestamp', 'User ID', 'First Name', 'Last Name', 'Username', 'Message'])
+            writer.writerow(['Timestamp', 'User ID', 'First Name',
+                            'Last Name', 'Username', 'Message'])
     except FileExistsError:
         pass
 
     # Записываем данные пользователя в файл
     with open(file_path, 'a', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow([current_time, user_id, first_name, last_name, username, message_text])
+        writer.writerow([current_time, user_id, first_name,
+                        last_name, username, message_text])
 
 # Функция для сохранения данных пользователя из сообщения
+
+
 async def log_user_data_from_message(message):
     user_id = message.from_user.id
     first_name = message.from_user.first_name
@@ -74,10 +74,11 @@ async def log_user_data_from_message(message):
     log_user_data(user_id, first_name, last_name, username, message_text)
 
 # Состояние ожидания введения номера пользователем (используется когда населенных пунктов с одинаковым названием несколько)
+
+
 class Form(StatesGroup):
     default = State()
     waiting_for_number = State()
-
 
 
 def get_employees_on_vacation(otpusk_data, days_ahead=3):
@@ -105,38 +106,34 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
 
     return employees_on_vacation, employees_starting_vacation_soon
 
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-
-
-
-    
 @main_router.message(CommandStart())
-async def handle_start(message: Message):
-    
-    
-    print('внутри обработчика')
+async def handle_start(message: Message, state: FSMContext):
+    await state.clear()
+
     user_first_name = message.from_user.first_name
     await message.answer(
-        f'Я бот министерства цифрового развития Красноярского края! \n Введи наименование любого населенного пункта края, чтобы получить информацию о связи в нем. По вопросам обращаться к @rejoller.')
-    
+        f'Я бот министерства цифрового развития Красноярского края!'
+        '\n Введи наименование любого населенного пункта края, '
+
+        'чтобы получить информацию о связи в нем. По вопросам обращаться к @rejoller.')
 
 
-@main_router.message()
+# @main_router.message(F.state.not_(Form.waiting_for_number))
+@main_router.message(~StateFilter(Form.waiting_for_number))
 async def handle_text(message: Message, state: FSMContext):
+    print('внутри обработчика handle_text')
     from main import bot
-    await state.clear()
+    from google_connections import init_redis
+    redis = await init_redis()
+
     user_state = await state.get_state()
-    
+
     if user_state == Form.waiting_for_number.state:
         return
 
-
-
-
     global info_text_storage
-    #await state.set_state(Form.default)
+    await state.set_state(Form.default)
     user_first_name = message.from_user.first_name
     await log_user_data_from_message(message)
     chat_id = message.chat.id
@@ -149,9 +146,8 @@ async def handle_text(message: Message, state: FSMContext):
     operators_response = ''
     survey_results_values = ''
 
-
     gc, spreadsheet = await get_authorized_client_and_spreadsheet()
-    redis = await init_redis()
+
     found_values_a = await search_values(message.text, redis)
 
     if not found_values_a:
@@ -159,34 +155,34 @@ async def handle_text(message: Message, state: FSMContext):
         levenshtein_matches = await search_values_levenshtein(message.text, spreadsheet, threshold=0.4, max_results=5)
 
         if levenshtein_matches:
-            unique_matches = set(levenshtein_matches)  # Используем множество, чтобы убрать повторяющиеся значения
+            # Используем множество, чтобы убрать повторяющиеся значения
+            unique_matches = set(levenshtein_matches)
             first_match = list(unique_matches)  # Преобразуем обратно в список
-            formatted_matches = "\n".join([f'`{match}`' for match in first_match])  # Создаем строки с обратными кавычками для каждого значения
+            # Создаем строки с обратными кавычками для каждого значения
+            formatted_matches = "\n".join(
+                [f'`{match}`' for match in first_match])
             await bot.send_message(message.chat.id, f'Проверьте правильность написания и попробуйте еще раз. Возможно вы имели в виду:\n(нажмите на населенный пункт, чтобы скопировать)\n\n{formatted_matches}', parse_mode='Markdown')
         else:
             await bot.send_message(message.chat.id, 'Не удалось найти информацию по данному запросу.\nПроверьте, правильно ли введено название населенного пункта и попробуйте еще раз')
         return
 
-
-    allowed_users ={1}
+    allowed_users = {1}
     if found_values_a:
         found_values = found_values_a
         await state.update_data(found_values=found_values)
 
-
         if len(found_values) == 1:
-            latitude = found_values[0][7]  # Широта находится в столбце H таблицы goroda2.0
+            # Широта находится в столбце H таблицы goroda2.0
+            latitude = found_values[0][7]
             longitude = found_values[0][8]
 
             yandex_2023_response = ''
             pokazatel_504p_lines = []
 
-
-
             if len(found_values) > 0 and len(found_values[0]) > 4:
                 # Подразумевается, что если условие выполнено, то можно безопасно обращаться к found_values[5][4]
 
-                ucn2_values, yandex_2023_values, pokazatel_504p_values, survey_results_values  = await asyncio.gather(
+                ucn2_values, yandex_2023_values, pokazatel_504p_values, survey_results_values = await asyncio.gather(
                     search_in_ucn2(found_values[0][4], redis),
                     search_yandex_2023_values(found_values[0][4], redis),
                     search_in_pokazatel_504p(found_values[0][4], redis),
@@ -200,7 +196,6 @@ async def handle_text(message: Message, state: FSMContext):
                     search_in_pokazatel_504p(found_values[0][4], redis)
                 )
                 survey_results_values = None
-
 
             if found_values_a:
                 for row in found_values_a:
@@ -219,12 +214,14 @@ async def handle_text(message: Message, state: FSMContext):
 
                     for operator_name, operator_value in operators.items():
 
-                        if operator_value:  # Проверка на наличие значения (не None и не пустая строка)
+                        # Проверка на наличие значения (не None и не пустая строка)
+                        if operator_value:
                             # Переводим значение в строку, чтобы избежать ошибок при выполнении метода replace
                             operator_value_str = str(operator_value)
 
                             # Пытаемся найти качество сигнала
-                            signal_quality = re.search(r'Отсутствует|Низкое|Среднее|Хорошее', operator_value_str, re.IGNORECASE)
+                            signal_quality = re.search(
+                                r'Отсутствует|Низкое|Среднее|Хорошее', operator_value_str, re.IGNORECASE)
                             if signal_quality:
                                 signal_quality = signal_quality.group()
                                 if "Отсутствует" in signal_quality:
@@ -239,13 +236,15 @@ async def handle_text(message: Message, state: FSMContext):
                                     signal_level = "❓Неизвестно"
 
                                 # Заменяем найденное качество сигнала на его эмодзи-эквивалент
-                                operator_value_str = operator_value_str.replace(signal_quality, signal_level)
+                                operator_value_str = operator_value_str.replace(
+                                    signal_quality, signal_level)
                             else:
                                 operator_value_str = operator_value_str
 
-
-                            operator_value_str = operator_value_str.replace("(", " ").replace(")", " ")
-                            operator_responses.append(f'{operator_name}: {operator_value_str}\n')
+                            operator_value_str = operator_value_str.replace(
+                                "(", " ").replace(")", " ")
+                            operator_responses.append(
+                                f'{operator_name}: {operator_value_str}\n')
                         else:
 
                             continue
@@ -275,7 +274,8 @@ async def handle_text(message: Message, state: FSMContext):
                     ucn2_response = ''
 
                     if 4 < len(row) and row[4]:  # Проверка наличия значения
-                        ucn2_response += '  Информация от Теле2:\n    -СМР: ' + row[4] + '\n'
+                        ucn2_response += '  Информация от Теле2:\n    -СМР: ' + \
+                            row[4] + '\n'
                     if 5 < len(row) and row[5]:  # Проверка наличия значения
                         ucn2_response += '    -Запуск: ' + row[5] + '\n'
                     if 6 < len(row) and row[6]:  # Проверка наличия значения
@@ -286,14 +286,16 @@ async def handle_text(message: Message, state: FSMContext):
                         response += ucn2_response
 
                 response += ucn2_response
-            pokazatel_504p_response = "\n".join(pokazatel_504p_lines) if pokazatel_504p_lines else "🔴отсутствует"
+            pokazatel_504p_response = "\n".join(
+                pokazatel_504p_lines) if pokazatel_504p_lines else "🔴отсутствует"
 
             if "4G" in pokazatel_504p_response:
                 votes_response = ""
             else:
 
                 try:
-                    if len(found_values[0]) > 38:  # Убедитесь, что у вас достаточно данных в строке
+                    # Убедитесь, что у вас достаточно данных в строке
+                    if len(found_values[0]) > 38:
                         votes = found_values[0][34] or "неизвестно"
                         update_time = found_values[0][35] or "неизвестно"
                         rank = found_values[0][36] or "неизвестно"
@@ -302,9 +304,11 @@ async def handle_text(message: Message, state: FSMContext):
                         if votes != "неизвестно" and update_time != "неизвестно" and rank != "неизвестно" and same_votes_np != "неизвестно":
                             votes_response = f'\n\n<b>Голосование УЦН 2.0 2024</b>\n\n📊Количество голосов: <b>{votes}</b> (такое же количество голосов имеют {same_votes_np} населённых пунктов)\n🏆Место в рейтинге: {rank}\nДата обновления информации: {update_time}'
                         else:
-                            print("Debug: Не все данные для блока голосования были найдены.")
+                            print(
+                                "Debug: Не все данные для блока голосования были найдены.")
                 except Exception as e:
-                    print(f"Debug: Ошибка при извлечении данных о голосах: {e}")
+                    print(
+                        f"Debug: Ошибка при извлечении данных о голосах: {e}")
 
             response = f'<b>{found_values[0][1]}</b>'
 
@@ -324,7 +328,6 @@ async def handle_text(message: Message, state: FSMContext):
             except Exception as e:
                 print(f"Произошла ошибка: {e}")
 
-
             if selsovet_info:
                 response += f'\n{selsovet_info}'
             if arctic_info:
@@ -337,9 +340,6 @@ async def handle_text(message: Message, state: FSMContext):
             response += f'\n🌐интернет: {internet_info}️'
             response += f'\n\n📱<b>Сотовая связь:</b>\n{pokazatel_504p_response}'
 
-
-
-
             if tanya_sub_info_year and tanya_sub_info_provider:
                 response += f'\n\nнаселенный пункт был подключен в рамках государственной программый "Развитие информационного общества" в {tanya_sub_info_year} году, оператор {tanya_sub_info_provider}'
 
@@ -350,17 +350,12 @@ async def handle_text(message: Message, state: FSMContext):
 
             info_text_storage[message.chat.id] = response
 
-
             await bot.send_location(message.chat.id, latitude, longitude)
-
 
             messages = split_message(response)
 
-
-
             for msg in messages:
                 await bot.send_message(message.chat.id, msg, parse_mode='HTML', disable_web_page_preview=True)
-                await state.clear()
 
             szoreg_values, schools_values = await asyncio.gather(
 
@@ -368,39 +363,30 @@ async def handle_text(message: Message, state: FSMContext):
                 search_schools_values(found_values[0][4], redis)
             )
 
-
-            
-
-            #if message.from_user.id in allowed_users:
-                # button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", callback_data=json.dumps({"type": "digital_ministry_info", "chat_id": message.chat.id}))
-                # inline_keyboard.add(button_digital_ministry_info)
-                #   button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", 'digital_ministry_info')
-                #  inline_keyboard.add(button_digital_ministry_info)
-
+            # if message.from_user.id in allowed_users:
+            # button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", callback_data=json.dumps({"type": "digital_ministry_info", "chat_id": message.chat.id}))
+            # inline_keyboard.add(button_digital_ministry_info)
+            #   button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", 'digital_ministry_info')
+            #  inline_keyboard.add(button_digital_ministry_info)
 
             if message.from_user.id in allowed_users:
-                button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", callback_data="digital_ministry_info")
+                button_digital_ministry_info = types.InlineKeyboardButton(
+                    "😈Подготовить ответ на обращение(БЕТА)", callback_data="digital_ministry_info")
                 inline_keyboard.add(button_digital_ministry_info)
-
-
-
-            
 
             builder = InlineKeyboardBuilder()
             survey_data_storage[message.chat.id] = survey_results_values
 
             if survey_results_values:
-                
+
                 markup = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="Показать результаты опроса", ccallback_data=json.dumps({"type": "survey_chart", "chat_id": message.chat.id}))]
+                    [InlineKeyboardButton(text="Показать результаты опроса", callback_data=json.dumps(
+                        {"type": "survey_chart", "chat_id": message.chat.id}))]
                 ])
                 builder.attach(InlineKeyboardBuilder.from_markup(markup))
                 await message.answer("Найдены результаты опроса. Хотите посмотреть?", reply_markup=builder.as_markup())
 
-
-
         #  if szofed_values or espd_values or szoreg_values or schools_values or info_text_storage:
-            
 
             if szoreg_values:
                 szoreg_response = '🏢<b>Учреждения, подключенные по госпрограмме</b>\n\n'
@@ -409,26 +395,24 @@ async def handle_text(message: Message, state: FSMContext):
 
                         szoreg_response += f'\n{i}. <b>Тип:</b> {row[7]}\n<b>аименование:</b> {row[8]}\n<b>Адрес:</b> {row[5]} \n<b>Тип подключения:</b> {row[6]}\n<b>Пропускная способность:</b> {row[9]}\n<b>Контракт:</b> {row[10]}\n'
                     else:
-                        print(f'Строка {i} слишком короткая для обработки: {row}')
+                        print(
+                            f'Строка {i} слишком короткая для обработки: {row}')
 
-
-
-
-                
                 szoreg_info_storage[message.chat.id] = szoreg_response
+                callback_data = json.dumps(
+                    {"type": "szoreg_info", "chat_id": message.chat.id})
+
                 markup = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text=f"🏢Список учреждений ({len(szoreg_values)})", callback_data = json.dumps({"type": "szoreg_info", "chat_id": message.chat.id}))]
+                    [InlineKeyboardButton(
+                        text=f"🏢Список учреждений ({len(szoreg_values)})", callback_data=callback_data)]
                 ])
                 builder.attach(InlineKeyboardBuilder.from_markup(markup))
-                
-
-
 
             if schools_values:
                 schools_response = '🏫<b>Школы:</b>\n'
                 for i, row in enumerate(schools_values, 1):
                     schools_response += f'\n{i} '
-                        
+
                     if len(row) > 7 and row[12] is not None:
                         schools_response += f'<b>{html.escape(row[12])}</b>\n'
                     if len(row) > 12 and row[7] is not None:
@@ -443,132 +427,97 @@ async def handle_text(message: Message, state: FSMContext):
                         schools_response += ''
                     schools_response += '\n'
 
-                
-                
-                
-
-
-
-
-
+                callback_data = json.dumps(
+                    {"type": "schools_info", "chat_id": message.chat.id})
                 schools_info_storage[message.chat.id] = schools_response
                 markup = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text=f"🏫Школы({len(schools_values)})", callback_data = json.dumps({"type": "schools_info", "chat_id": message.chat.id}))]
+                    [InlineKeyboardButton(
+                        text=f"🏫Школы({len(schools_values)})", callback_data=callback_data)]
                 ])
                 builder.attach(InlineKeyboardBuilder.from_markup(markup))
 
-
-
-                
-                
             if markup:
                 await message.answer("доп инфо", reply_markup=builder.as_markup())
-                #await bot.send_message(message.chat.id, "⬇️Дополнительная информация⬇️", reply_markup=inline_keyboard)
+
+                # await bot.send_message(message.chat.id, "⬇️Дополнительная информация⬇️", reply_markup=inline_keyboard)
             else:
                 await bot.send_message(message.chat.id, "Нет дополнительной информации для отображения.")
-                
-                #await bot.send_message(message.chat.id, "⬇️Дополнительная информация⬇️", reply_markup=inline_keyboard)
-        #response_storage[message.chat.id] = response
 
-        
+                # await bot.send_message(message.chat.id, "⬇️Дополнительная информация⬇️", reply_markup=inline_keyboard)
+        # response_storage[message.chat.id] = response
+
     if len(found_values) > 1:
-        await state.clear()
-        logging.info(f"Текущее состояние: {await state.get_state()}")
+
         builder_1 = ReplyKeyboardBuilder()
-        
+
         values = [(await get_value(row, 1), await get_value(row, 2)) for row in found_values]
-        values_with_numbers = [f"{i + 1}. {value[0]}" for i, value in enumerate(values)]
+        values_with_numbers = [
+            f"{i + 1}. {value[0]}" for i, value in enumerate(values)]
         msg = '\n'.join(values_with_numbers)
 
-        messages = split_message(f'Найдено несколько населенных пунктов с таким названием. \n\n{msg}')
+        messages = split_message(
+            f'Найдено несколько населенных пунктов с таким названием. \n\n{msg}')
 
         for msg in messages:
             await bot.send_message(message.chat.id, msg)
 
+        for index in enumerate(found_values, start=1):
 
-
-        for index in enumerate(found_values, start = 1):
-            
             button_text = f"{index[0]}"
-            
+
             builder_1.button(text=button_text)
         builder_1.button(text="Отмена")
         builder_1.adjust(5)
-        keyboard_1 = builder_1.as_markup(resize_keyboard=True, one_time_keyboard=True)
-        
+        keyboard_1 = builder_1.as_markup(
+            resize_keyboard=True, one_time_keyboard=True)
 
-        
-        logging.info(f"Текущее состояние: {await state.get_state()}")
-        await bot.send_message(message.chat.id, 'Выберите номер необходимого населенного пункта:', reply_markup=keyboard_1)
-        
-        logging.info(f"Обработчик handle_choice активирован для пользователя {message.from_user.id}")
-        logging.info(f"Получен текст сообщения: {message.text}")
-        
-
+        saved_data = await state.update_data()
         await state.set_state(Form.waiting_for_number)
-        logging.info(f"Текущее состояние: {await state.get_state()}")
-        
+
+        await bot.send_message(message.chat.id, 'Выберите номер необходимого населенного пункта:', reply_markup=keyboard_1)
+
+        logging.info(f"Получен текст сообщения: {message.text}")
 
 
-
-
-
-
-
-
-
-
-
-
-@main_router.message(Form.waiting_for_number)
-async def handle_choice(message: types.Message, state: FSMContext):
-    logging.info(f"Обработчик handle_choice активирован для пользователя {message.from_user.id}")
-    logging.info(f"Текущее состояние: {await state.get_state()}")
-    logging.info(f"Получен текст сообщения: {message.text}")
-   
-
-    #await state.update_data(default=message.text)
-    
-    #await state.set_state(Form.waiting_for_number)
-    
-    from main import bot
-    
+@main_router.message(StateFilter(Form.waiting_for_number))
+async def handle_select_number(message: Message, state: FSMContext):
+    from google_connections import init_redis
     redis = await init_redis()
-    try:
-        
+    data = await state.get_data()
+    from main import bot
 
-        data = await state.get_data()
+    try:
+
         found_values = data.get('found_values')
 
         index_text = message.text
+        print(f'введенное значение: {index_text}')
         user_first_name = message.from_user.first_name
         chat_id = message.chat.id
-        response = ""
+        response = ''
         pokazatel_504p_lines = []
-        votes_response = ""
-        yandex_2023_response = ""
-        ucn2_response = ""
+        votes_response = ''
+        yandex_2023_response = ''
+        ucn2_response = ''
 
         # Проверки ввода пользователя
         if index_text == "Отмена":
             await bot.send_message(chat_id, 'Поиск отменен.', reply_markup=types.ReplyKeyboardRemove())
-            await state.reset_state()
+            await state.clear()
             return
         if not index_text.isdigit():
             await bot.send_message(chat_id, 'Введено некорректное значение. Пожалуйста, введите число.')
             return
 
         index = int(index_text)
+        print(f'выбранный населенный пункт {index}')
         if index <= 0 or index > len(found_values):
             await bot.send_message(chat_id, f'Введено некорректное значение. Пожалуйста, введите число в диапазоне от 1 до {len(found_values)}.')
             return
 
-        selected_np = found_values[index -1]
+        selected_np = found_values[index - 1]
         latitude = selected_np[7]
         longitude = selected_np[8]
-
-        # Получаем все необходимые данные асинхронно
-        gc, spreadsheet = await get_authorized_client_and_spreadsheet()
 
         yandex_2023_values, pokazatel_504p_values, survey_results_values, ucn2_values = await asyncio.gather(
             search_yandex_2023_values(selected_np[4], redis),
@@ -577,7 +526,7 @@ async def handle_choice(message: types.Message, state: FSMContext):
 
             search_in_ucn2(selected_np[4], redis)
         )
-
+        print('pokazatel_504p_values:', pokazatel_504p_values,)
 
         # Создаем словарь с операторами и их значениями
         operators = {
@@ -594,12 +543,14 @@ async def handle_choice(message: types.Message, state: FSMContext):
 
         for operator_name, operator_value in operators.items():
 
-            if operator_value:  # Проверка на наличие значения (не None и не пустая строка)
+            # Проверка на наличие значения (не None и не пустая строка)
+            if operator_value:
                 # Переводим значение в строку, чтобы избежать ошибок при выполнении метода replace
                 operator_value_str = str(operator_value)
 
                 # Пытаемся найти качество сигнала
-                signal_quality = re.search(r'Отсутствует|Низкое|Среднее|Хорошее', operator_value_str, re.IGNORECASE)
+                signal_quality = re.search(
+                    r'Отсутствует|Низкое|Среднее|Хорошее', operator_value_str, re.IGNORECASE)
                 if signal_quality:
                     signal_quality = signal_quality.group()
                     if "Отсутствует" in signal_quality:
@@ -614,18 +565,19 @@ async def handle_choice(message: types.Message, state: FSMContext):
                         signal_level = "❓Неизвестно"
 
                     # Заменяем найденное качество сигнала на его эмодзи-эквивалент
-                    operator_value_str = operator_value_str.replace(signal_quality, signal_level)
+                    operator_value_str = operator_value_str.replace(
+                        signal_quality, signal_level)
                 else:
                     operator_value_str = operator_value_str
 
                 # Заменяем "(" и ")" на " "
-                operator_value_str = operator_value_str.replace("(", " ").replace(")", " ")
-                operator_responses.append(f'{operator_name}: {operator_value_str}\n')
+                operator_value_str = operator_value_str.replace(
+                    "(", " ").replace(")", " ")
+                operator_responses.append(
+                    f'{operator_name}: {operator_value_str}\n')
             else:
                 # Если нет данных по оператору, не добавляем его в ответ
                 continue
-
-
 
         # Если нет данных ни по одному оператору, добавляем сообщение об отсутствии данных
         if not operator_responses:
@@ -635,40 +587,38 @@ async def handle_choice(message: types.Message, state: FSMContext):
 
         response += operators_response
 
-
         if yandex_2023_values:
             yandex_2023_response = '\n\n<b>Информация из таблицы 2023</b>\n\n'
             for row in yandex_2023_values:
                 yandex_2023_response += f'Тип подключения: {row[4]}\nОператор: {row[15]}\nСоглашение: {row[7]}\nПодписание соглашения с МЦР: {row[8]}\nПодписание соглашения с АГЗ: {row[9]}\nДата подписания контракта: {row[11]}\nДата установки АМС: {row[12]}\nДата монтажа БС: {row[13]}\nЗапуск услуг: {row[14]}\n\n'
 
-
-
-
         if len(pokazatel_504p_values) > 0:
             for i in range(6, 10):
                 if len(pokazatel_504p_values[0]) > i and pokazatel_504p_values[0][i] and pokazatel_504p_values[0][i].strip():
                     value = pokazatel_504p_values[0][i]
-                    value = value.replace("Хорошее", "🟢Хорошее").replace("Низкое", "🟠Низкое")
+                    value = value.replace("Хорошее", "🟢Хорошее").replace(
+                        "Низкое", "🟠Низкое")
                     pokazatel_504p_lines.append(f"{value}")
 
-        pokazatel_504p_response = "\n".join(pokazatel_504p_lines) if pokazatel_504p_lines else "🔴отсутствует"
-
-
+        pokazatel_504p_response = "\n".join(
+            pokazatel_504p_lines) if pokazatel_504p_lines else "🔴отсутствует"
 
         if "4G" in pokazatel_504p_response:
             votes_response = ""
         else:
             if len(selected_np) > 38:
-                votes = selected_np[34] or "неизвестно"  # Количество голосов находится в 35-ом столбце
-                update_time = selected_np[35] or "неизвестно"  # Время обновления находится в 36-ом столбце
-                rank = selected_np[36] or "неизвестно"  # Рейтинг находится в 37-ом столбце
-                same_votes_np = selected_np[38] or "неизвестно"  # Количество НП с таким же количеством голосов находится в 39-ом столбце
+                # Количество голосов находится в 35-ом столбце
+                votes = selected_np[34] or "неизвестно"
+                # Время обновления находится в 36-ом столбце
+                update_time = selected_np[35] or "неизвестно"
+                # Рейтинг находится в 37-ом столбце
+                rank = selected_np[36] or "неизвестно"
+                # Количество НП с таким же количеством голосов находится в 39-ом столбце
+                same_votes_np = selected_np[38] or "неизвестно"
                 if votes != "неизвестно" and update_time != "неизвестно" and rank != "неизвестно" and same_votes_np != "неизвестно":
                     votes_response = f'\n\n<b>Голосование УЦН 2.0 2024</b>\n\n📊Количество голосов: <b>{votes}</b> (такое же количество голосов имеют {same_votes_np} населённых пунктов)\n🏆Место в рейтинге: {rank}\nДата обновления информации: {update_time}'
                 else:
                     print("Debug: Не все данные для блока голосования были найдены.")
-
-
 
         response += votes_response
 
@@ -677,7 +627,8 @@ async def handle_choice(message: types.Message, state: FSMContext):
                 ucn2_response = ''
 
                 if 4 < len(row) and row[4]:  # Проверка наличия значения
-                    ucn2_response += '  Информация от Теле2:\n    -СМР: ' + row[4] + '\n'
+                    ucn2_response += '  Информация от Теле2:\n    -СМР: ' + \
+                        row[4] + '\n'
                 if 5 < len(row) and row[5]:  # Проверка наличия значения
                     ucn2_response += '    -Запуск: ' + row[5] + '\n'
                 if 6 < len(row) and row[6]:  # Проверка наличия значения
@@ -687,7 +638,7 @@ async def handle_choice(message: types.Message, state: FSMContext):
                     ucn2_response = '\n\n\n<b>УЦН 2.0 2023</b>\n' + ucn2_response
                     response += ucn2_response
         survey_data_storage[message.chat.id] = survey_results_values
-        
+
         try:
             selsovet_info, tanya_sub_info_year, tanya_sub_info_provider, taksofony_info, arctic_info, internet_info, population_2010, population_2020, itog_ucn_2023 = await asyncio.gather(
                 get_value(found_values[index - 1], 20),
@@ -705,7 +656,7 @@ async def handle_choice(message: types.Message, state: FSMContext):
             print(f"Произошла ошибка: {e}")
 
         response = f'<b>{await get_value(found_values[index - 1], 1)}</b>'
-        
+
         if selsovet_info:
             response += f'\n{selsovet_info}'
         if arctic_info:
@@ -714,11 +665,10 @@ async def handle_choice(message: types.Message, state: FSMContext):
         response += f'\n\n👥население 2010 г:{population_2010} чел.\n👥население 2020 г: {population_2020} чел.'
 
         if taksofony_info:
-                response += f'\n☎️таксофон: {taksofony_info}'
+            response += f'\n☎️таксофон: {taksofony_info}'
 
         response += f'\n🌐интернет: {internet_info}️'
         response += f'\n\n📱<b>Сотовая связь:</b>\n{pokazatel_504p_response}'
-
 
         if tanya_sub_info_year and tanya_sub_info_provider:
             response += f'\n\nнаселенный пункт был подключен в рамках государственной программый "Развитие информационного общества" в {tanya_sub_info_year} году, оператор {tanya_sub_info_provider}'
@@ -730,46 +680,43 @@ async def handle_choice(message: types.Message, state: FSMContext):
 
         response += f'{ucn2_response}{yandex_2023_response}{votes_response}\nЕсли хочешь узнать о голосовании УЦН 2.0 2024 жми /votes\nБот для проведения опросов жителей - <a href="http://t.me/providers_rating_bot">@providers_rating_bot</a>'
 
-
-
         info_text_storage[message.chat.id] = response
 
         await bot.send_message(message.chat.id, "<b>Выбранный населенный пункт</b>", parse_mode='HTML', reply_markup=types.ReplyKeyboardRemove())
-        await state.clear()
+
         await bot.send_location(message.chat.id, latitude, longitude)
 
         messages = split_message(response)
 
-
-        #allowed_users = {964635576, 1063749463, 374056328, 572346758, 434872315, 1045874687, 1063749463, 487922464, 371098269, 402748716}
-        allowed_users ={1}
+        # allowed_users = {964635576, 1063749463, 374056328, 572346758, 434872315, 1045874687, 1063749463, 487922464, 371098269, 402748716}
+        allowed_users = {1}
         for msg in messages:
             await bot.send_message(message.chat.id, msg, parse_mode='HTML', disable_web_page_preview=True)
-
 
         szoreg_values, schools_values = await asyncio.gather(
             search_szoreg_values(selected_np[4], redis),
             search_schools_values(selected_np[4], redis)
         )
-        
-        await state.reset_state()
 
+        builder_2 = InlineKeyboardBuilder()
 
+        markup = None
 
-
-        inline_keyboard = types.InlineKeyboardMarkup()
-
+        await state.clear()
         if survey_results_values:
-            survey_inline_keyboard = types.InlineKeyboardMarkup()
-            button_survey_results = types.InlineKeyboardButton("Показать результаты опроса", callback_data=json.dumps({"type": "survey_chart", "chat_id": message.chat.id}))
-            survey_inline_keyboard.add(button_survey_results)
-            await bot.send_message(message.chat.id, "Найдены результаты опроса. Хотите посмотреть?", reply_markup=survey_inline_keyboard)
+            markup = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text=f"Показать результаты опроса", callback_data=json.dumps(
+                    {"type": "survey_chart", "chat_id": message.chat.id}))]
+            ])
+            builder_2.attach(InlineKeyboardBuilder.from_markup(markup))
 
+        '''
         if message.from_user.id in allowed_users:
             button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", callback_data=json.dumps({"type": "digital_ministry_info", "chat_id": message.chat.id}))
             inline_keyboard.add(button_digital_ministry_info)
-
+        '''
         if szoreg_values:
+
             szoreg_response = '🏢<b>Учреждения, подключенные по госпрограмме</b>\n\n'
             for i, row in enumerate(szoreg_values, 1):
                 if len(row) > 6:
@@ -778,10 +725,15 @@ async def handle_choice(message: types.Message, state: FSMContext):
                 else:
                     print(f'Строка {i} слишком короткая для обработки: {row}')
 
-            callback_data = json.dumps({"type": "szoreg_info", "chat_id":message.chat.id})
             szoreg_info_storage[message.chat.id] = szoreg_response
-            button_szoreg_info = types.InlineKeyboardButton(f"🏢Список учреждений ({len(szoreg_values)})", callback_data=callback_data)
-            inline_keyboard.add(button_szoreg_info)
+            callback_data = json.dumps(
+                {"type": "szoreg_info", "chat_id": message.chat.id})
+
+            markup = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(
+                    text=f"🏢Список учреждений ({len(szoreg_values)})", callback_data=callback_data)]
+            ])
+            builder_2.attach(InlineKeyboardBuilder.from_markup(markup))
 
         if schools_values:
             schools_response = '🏫<b>Школы:</b>\n'
@@ -802,12 +754,21 @@ async def handle_choice(message: types.Message, state: FSMContext):
                     schools_response += ''
                 schools_response += '\n'
 
-            callback_data = json.dumps({"type": "schools_info", "chat_id": message.chat.id})
             schools_info_storage[message.chat.id] = schools_response
-            button_schools_info = types.InlineKeyboardButton("🏫Школы",callback_data=callback_data)
-            inline_keyboard.add(button_schools_info)
-        if inline_keyboard.inline_keyboard:
-            await bot.send_message(message.chat.id, "⬇️Дополнительная информация⬇️", reply_markup=inline_keyboard)
+            markup = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text=f"🏫Школы ({len(schools_values)})", callback_data=json.dumps(
+                    {"type": "schools_info", "chat_id": message.chat.id}))]
+            ])
+            builder_2.attach(InlineKeyboardBuilder.from_markup(markup))
+
+        print(
+            f"Creating szo button with data: {json.dumps({'type': 'szoreg_info', 'chat_id': message.chat.id})}")
+        print(
+            f"Creating school button with data: {json.dumps({'type': 'school_info', 'chat_id': message.chat.id})}")
+
+        if markup:
+            await message.answer("доп инфо", reply_markup=builder_2.as_markup())
+
         else:
             await bot.send_message(message.chat.id, "Нет дополнительной информации для отображения.")
 
@@ -815,12 +776,10 @@ async def handle_choice(message: types.Message, state: FSMContext):
 
         await bot.send_message(message.chat.id, 'Введено некорректное значение. Пожалуйста, введите число в диапазоне от 1 до {}.'.format(len(found_values)))
 
+
 @main_router.message(F.text == "привет")
 async def hello(message: types.Message):
     await message.answer("Я с тобой не разговариваю!")
-
-
-
 
 
 # Стартовое сообщение (когда пользователь нажал /start)
@@ -854,15 +813,13 @@ async def send_votes(message: types.Message):
 
     except Exception as e:
         tb = traceback.format_exc()  # Получить трассировку стека
-        print("An error occurred while handling /votes:", tb)  # Печатает трассировку стека
-        await message.reply(f'Произошла ошибка при обработке вашего запроса: {e}\n{tb}')  # Включает ошибку и трассировку стека в ответ пользователю
-
-
+        # Печатает трассировку стека
+        print("An error occurred while handling /votes:", tb)
+        # Включает ошибку и трассировку стека в ответ пользователю
+        await message.reply(f'Произошла ошибка при обработке вашего запроса: {e}\n{tb}')
 
 
 # Функции для работы команды /otpusk
-
-
 
 
 @main_router.message(Command('otpusk'))
@@ -872,7 +829,8 @@ async def handle_otpusk_command(message: types.Message, days_ahead=30):
     await log_user_data_from_message(message)
     otpusk_data = await load_otpusk_data()
 
-    employees_on_vacation, employees_starting_vacation_soon = get_employees_on_vacation(otpusk_data, days_ahead)
+    employees_on_vacation, employees_starting_vacation_soon = get_employees_on_vacation(
+        otpusk_data, days_ahead)
 
     response = ""
 
@@ -892,7 +850,6 @@ async def handle_otpusk_command(message: types.Message, days_ahead=30):
 
     if not response:
         response = "Сегодня никто не в отпуске, и никто не уходит в отпуск в ближайшие 14 дней."
-
 
     messages = split_message(response)
 
@@ -919,33 +876,10 @@ async def handle_additional_info(query):
 '''
 
 
-
-import json
-
-async def handle_szoreg_info(query):
-    from main import bot
-    chat_id = json.loads(query.data)["chat_id"]
-    response = szoreg_info_storage[chat_id]
-    messages = split_message(response)
-    
-    try:
-        for message_group in messages:
-            msg = ''.join(message_group)
-            if msg.strip():  # Проверка, что сообщение не пустое
-                
-                await bot.send_message(chat_id, msg, parse_mode='HTML')
-            else:
-                print(f"Skipped empty message for chat ID {chat_id}")
-
-        await bot.answer_callback_query(query.id)
-        print(f"Callback query answered for chat ID {chat_id}")
-    except:
-        print(f"Callback query didn't answer for chat ID {chat_id}")
-
-    
-
-
+@main_router.callback_query(F.data.contains("school"))
 async def handle_schools_info(query):
+    data = json.loads(query.data)
+    print(f"Received callback school data: {data}")
     from main import bot
     chat_id = json.loads(query.data)["chat_id"]
     if chat_id in schools_info_storage:
@@ -961,10 +895,7 @@ async def handle_schools_info(query):
         await bot.answer_callback_query(query.id, "Информация из таблицы по школам недоступна.")
 
 
-
-
-
-
+@main_router.callback_query(F.data.contains("survey"))
 async def handle_survey_chart(query):
     print("handle_survey_chart called with query data:", query.data)
     chat_id = json.loads(query.data)["chat_id"]
@@ -1004,15 +935,51 @@ async def handle_survey_chart(query):
 
         title = "Результаты опроса"  # Установите нужный заголовок для графика
         try:
-            
-            await create_individual_radar_chart(chat_id, data_df, title)  # передаем весь DataFrame, а не одну строку
+
+            # передаем весь DataFrame, а не одну строку
+            await create_individual_radar_chart(chat_id, data_df, title)
         except Exception as e:
-            
+
             logging.error("An error occurred: %s", e, exc_info=True)
 
     else:
         print(f"No data found for chat_id {chat_id}")
 
+
+@main_router.callback_query(F.data.contains("szore"))
+async def handle_szoreg_info(query: types.CallbackQuery):
+    data = json.loads(query.data)
+    print(f"Received szo callback data: {data}")
+    try:
+
+        print("Данные из callback_data:", data)
+    except json.JSONDecodeError as e:
+        print(f"Ошибка декодирования JSON: {e}")
+        await query.bot.answer_callback_query(query.id, "Некорректные данные.")
+        return
+
+    chat_id = data["chat_id"]
+    if chat_id not in szoreg_info_storage:
+        print("Информация для данного chat_id не найдена в хранилище.")
+        await query.bot.answer_callback_query(query.id, "Информация недоступна.")
+        return
+
+    response = szoreg_info_storage[chat_id]
+    messages = split_message(response)
+
+    try:
+        for message_group in messages:
+            msg = ''.join(message_group)
+            if msg.strip():
+                await query.bot.send_message(chat_id, msg, parse_mode='HTML')
+        await query.bot.answer_callback_query(query.id, "Данные отправлены.")
+
+        print("Сообщения успешно отправлены.")
+
+    except Exception as e:
+        await query.bot.answer_callback_query(query.id, "Произошла ошибка при обработке запроса.")
+        print(
+            f"Exception: {e} Callback query didn't answer for chat ID {chat_id}")
 
 
 async def create_individual_radar_chart(chat_id, data_df, title):
@@ -1028,9 +995,11 @@ async def create_individual_radar_chart(chat_id, data_df, title):
     title_font = ImageFont.truetype(title_font_path, 30)
     text_font = ImageFont.truetype(title_font_path, 18)
 
-    title_bbox = draw.textbbox((0,0), title, font=title_font)
-    title_width, title_height = title_bbox[2] - title_bbox[0], title_bbox[3] - title_bbox[1]
-    draw.text(((img_width - title_width) // 2, 20), title, fill="black", font=title_font)
+    title_bbox = draw.textbbox((0, 0), title, font=title_font)
+    title_width, title_height = title_bbox[2] - \
+        title_bbox[0], title_bbox[3] - title_bbox[1]
+    draw.text(((img_width - title_width) // 2, 20),
+              title, fill="black", font=title_font)
 
     # Загрузите логотипы и уменьшите их
     logo_paths = [
@@ -1041,11 +1010,13 @@ async def create_individual_radar_chart(chat_id, data_df, title):
     ]
 
     logos = []
-    resize_factors = [0.1, 0.1, 0.1*2, 0.1/3] # Уменьшаем МТС в 3 раза меньше и увеличиваем Билайн в 2 раза больше
+    # Уменьшаем МТС в 3 раза меньше и увеличиваем Билайн в 2 раза больше
+    resize_factors = [0.1, 0.1, 0.1*2, 0.1/3]
     for i, path in enumerate(logo_paths):
         logo = Image.open(path)
         logo_width, logo_height = logo.size
-        logos.append(logo.resize((int(logo_width * resize_factors[i]), int(logo_height * resize_factors[i]))))
+        logos.append(logo.resize(
+            (int(logo_width * resize_factors[i]), int(logo_height * resize_factors[i]))))
 
     # Добавьте логотипы
     column_width = img_width // 4
@@ -1054,11 +1025,13 @@ async def create_individual_radar_chart(chat_id, data_df, title):
         y = 100
         if i in [1, 2]:  # индексы для Билайн и Мегафон
             # Создаем отдельное изображение для наложения
-            logo_img = Image.new('RGBA', (img_width, img_height), (255, 255, 255, 0))
+            logo_img = Image.new(
+                'RGBA', (img_width, img_height), (255, 255, 255, 0))
             logo_img.paste(logo, (x, y))
 
             # Накладываем логотип на основное изображение
-            img = Image.alpha_composite(img.convert('RGBA'), logo_img).convert('RGB')
+            img = Image.alpha_composite(
+                img.convert('RGBA'), logo_img).convert('RGB')
         else:
             # Для других логотипов просто вставляем их
             img.paste(logo, (x, y))
@@ -1085,9 +1058,10 @@ async def create_individual_radar_chart(chat_id, data_df, title):
             else:
                 text = "Нет данных"
 
-            x = column_width * i + (column_width - logos[i].width) // 2  # Исправляем позиционирование текста
+            # Исправляем позиционирование текста
+            x = column_width * i + (column_width - logos[i].width) // 2
             y_text = y_start + idx * y_step
-            
+
             draw.text((x, y_text), text, fill="black", font=text_font)
 
     # Сохраните и отправьте изображение
@@ -1099,16 +1073,3 @@ async def create_individual_radar_chart(chat_id, data_df, title):
 
     # Удаляем временный файл
     os.remove(temp_file_path)
-
-
-
-
-
-
-#main_router.callback_query(handle_additional_info, lambda query: json.loads(query.data)["type"] == "additional_info")
-#main_router.callback_query(handle_szoreg_info, lambda query: json.loads(query.data)["type"] == "szoreg_info")
-main_router.callback_query(handle_schools_info, lambda query: json.loads(query.data)["type"] == "schools_info")
-main_router.callback_query(handle_digital_ministry_info, lambda query: json.loads(query.data)["type"] == "digital_ministry_info")
-main_router.callback_query(handle_survey_chart, lambda query: json.loads(query.data)["type"] == "survey_chart")
-
-

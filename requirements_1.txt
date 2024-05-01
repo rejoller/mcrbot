@@ -1,7 +1,7 @@
 aioredis
-aiofiles==23.1.0
+aiofiles
 aiogram
-aiohttp==3.8.5
+aiohttp
 folium==0.14.0
 google-api-core==2.11.1
 google-api-python-client==2.48.0

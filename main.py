@@ -116,8 +116,19 @@ def setup_logging():
 async def on_startup():
     try:
         print('Initializing Redis...')
+        #load_szoreg_values
+        redis = await init_redis()
+        from google_connections import spreadsheet
+       # await load_values(spreadsheet, redis)
+       # await load_szoreg_values(spreadsheet, redis)
+        #await load_pokazatel_504p_values(spreadsheet, redis)
+        #await load_schools_values(spreadsheet, redis)
+        #await load_yandex_2023_values(spreadsheet, redis)
+       # await load_ucn2_values(spreadsheet, redis)
+        #await load_survey_values(spreadsheet, redis)
+        #await load_votes_values(spreadsheet, redis)
         # Предполагается, что у вас есть функция init_redis
-        redis = await init_redis()  
+          
         print('Initialization and data loading complete.')
     except Exception as e:
         print('Failed to initialize and load data:', str(e))
@@ -126,8 +137,9 @@ async def on_startup():
 async def main():
     
     dp = Dispatcher(storage = storage)
-    from handlers import main_router 
+    from handlers import main_router, select_number_router
     dp.include_router(main_router)
+    dp.include_router(select_number_router)
     await on_startup()
     print('Бот запущен и готов к приему сообщений')
 
@@ -135,6 +147,7 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     asyncio.run(main())
 
     

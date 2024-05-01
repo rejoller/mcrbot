@@ -8,6 +8,7 @@ import traceback
 from aioredis import Redis
 import json
 redis = None
+spreadsheet = None
 async def init_redis():
     # Using aioredis.from_url to initialize the Redis client
     try:
@@ -85,7 +86,7 @@ async def search_szoreg_values(query, redis):
         if data_json_list:
             # Преобразуем все JSON строки в объекты Python в одном выражении list comprehension
             found_values = [json.loads(data_json) for data_json in data_json_list]
-            print('found_values:', found_values)
+            
             return found_values
         else:
             print(f'Данные по запросу "{query_lower}" не найдены.')
