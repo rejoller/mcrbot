@@ -1,8 +1,10 @@
 
 
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReactionTypeEmoji, InputFile, FSInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram import Bot, Dispatcher, types, Router, F
+from aiogram import types, Router, F
+
+
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, CommandStart, StateFilter
 from aiogram.fsm.state import State, StatesGroup
@@ -10,7 +12,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import Message
 from datetime import datetime, timedelta
 import csv
-import time
+from mongo_connect import save_survey_results
 from google_connections import get_authorized_client_and_spreadsheet, search_yandex_2023_values, search_in_pokazatel_504p, search_in_ucn2, search_schools_values, search_survey_results, load_otpusk_data, search_values, search_values_levenshtein, search_szoreg_values, get_value, init_redis
 from openai_file import handle_digital_ministry_info
 import asyncio
@@ -26,8 +28,9 @@ import shutil
 from PIL import Image, ImageDraw, ImageFont
 import pandas as pd
 import json
-# from config import bot_token
 
+from main import bot
+from google_connections import init_redis
 
 info_text_storage = {}
 user_messages = {}
@@ -38,7 +41,7 @@ message_storage = {}
 survey_data_storage = {}
 response_storage = {}
 main_router = Router()
-select_number_router = Router()
+
 
 
 # Функции для логирования действий пользователей
@@ -81,6 +84,17 @@ class Form(StatesGroup):
     waiting_for_number = State()
 
 
+class Survey(StatesGroup):
+    tele2_level = State()
+    tele2_quality = State()
+    megafon_level = State()
+    megafon_quality = State()
+    mts_level = State()
+    mts_quality = State()
+    beeline_level = State()
+    beeline_quality = State()
+
+
 def get_employees_on_vacation(otpusk_data, days_ahead=3):
     today = datetime.today().date()
     future_vacation_start = today + timedelta(days=days_ahead)
@@ -119,26 +133,44 @@ async def handle_start(message: Message, state: FSMContext):
         'чтобы получить информацию о связи в нем. По вопросам обращаться к @rejoller.')
 
 
-# @main_router.message(F.state.not_(Form.waiting_for_number))
+
+
+@main_router.message(F.location)
+async def handle_location(message: types.Message, state: FSMContext):
+    # Обработка локации
+    from mongo_connect import save_user_location
+    user_id = message.from_user.id
+    location_data = {"latitude": message.location.latitude, "longitude": message.location.longitude}
+    await message.answer('спасибо😉')
+    await save_user_location(user_id, location_data)
+
+
+
+@main_router.message(F.animation)
+async def echo_gif(message: Message):
+    file_id = message.animation.file_id
+    print(file_id)
+    await message.reply_animation(message.animation.file_id)
+
+
 @main_router.message(~StateFilter(Form.waiting_for_number))
 async def handle_text(message: Message, state: FSMContext):
-    print('внутри обработчика handle_text')
-    from main import bot
-    from google_connections import init_redis
+   
+    reaction_emoji = ReactionTypeEmoji(emoji='🫡')
+    await message.react(reaction=[reaction_emoji], is_big=True)
     redis = await init_redis()
 
-    user_state = await state.get_state()
+  #  user_state = await state.get_state()
 
-    if user_state == Form.waiting_for_number.state:
-        return
+
 
     global info_text_storage
     await state.set_state(Form.default)
-    user_first_name = message.from_user.first_name
+   # user_first_name = message.from_user.first_name
     await log_user_data_from_message(message)
-    chat_id = message.chat.id
+  #  chat_id = message.chat.id
 
-    user_id = message.from_user.id  # Получаем user_id
+    #user_id = message.from_user.id  # Получаем user_id
 
     votes_response = ""
     response = ''
@@ -149,7 +181,8 @@ async def handle_text(message: Message, state: FSMContext):
     gc, spreadsheet = await get_authorized_client_and_spreadsheet()
 
     found_values_a = await search_values(message.text, redis)
-
+    
+    
     if not found_values_a:
         # Проверяем метод Левенштейна с 70% совпадениями
         levenshtein_matches = await search_values_levenshtein(message.text, spreadsheet, threshold=0.4, max_results=5)
@@ -170,6 +203,7 @@ async def handle_text(message: Message, state: FSMContext):
     if found_values_a:
         found_values = found_values_a
         await state.update_data(found_values=found_values)
+        await state.update_data(np=found_values[0][4])
 
         if len(found_values) == 1:
             # Широта находится в столбце H таблицы goroda2.0
@@ -350,12 +384,22 @@ async def handle_text(message: Message, state: FSMContext):
 
             info_text_storage[message.chat.id] = response
 
-            await bot.send_location(message.chat.id, latitude, longitude)
+            await bot.send_location(message.chat.id, latitude, longitude, heading=10, proximity_alert_radius = 200)
 
             messages = split_message(response)
+            survey_builder = InlineKeyboardBuilder()
+            markup = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(
+                        text=f"Пройти опрос", callback_data='start_survey')]
+                ])
+            survey_builder.attach(InlineKeyboardBuilder.from_markup(markup))
 
-            for msg in messages:
-                await bot.send_message(message.chat.id, msg, parse_mode='HTML', disable_web_page_preview=True)
+            
+            await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup())
+
+
+                
+                
 
             szoreg_values, schools_values = await asyncio.gather(
 
@@ -516,6 +560,8 @@ async def handle_select_number(message: Message, state: FSMContext):
             return
 
         selected_np = found_values[index - 1]
+        await state.update_data(found_values=selected_np)
+        await state.update_data(np=selected_np[4])
         latitude = selected_np[7]
         longitude = selected_np[8]
 
@@ -684,14 +730,27 @@ async def handle_select_number(message: Message, state: FSMContext):
 
         await bot.send_message(message.chat.id, "<b>Выбранный населенный пункт</b>", parse_mode='HTML', reply_markup=types.ReplyKeyboardRemove())
 
+
+        
+
+
         await bot.send_location(message.chat.id, latitude, longitude)
 
         messages = split_message(response)
 
         # allowed_users = {964635576, 1063749463, 374056328, 572346758, 434872315, 1045874687, 1063749463, 487922464, 371098269, 402748716}
         allowed_users = {1}
-        for msg in messages:
-            await bot.send_message(message.chat.id, msg, parse_mode='HTML', disable_web_page_preview=True)
+       
+
+        survey_builder = InlineKeyboardBuilder()
+        markup = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(
+                        text=f"Пройти опрос", callback_data='start_survey')]
+                ])
+        survey_builder.attach(InlineKeyboardBuilder.from_markup(markup))
+
+       
+        await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup())
 
         szoreg_values, schools_values = await asyncio.gather(
             search_szoreg_values(selected_np[4], redis),
@@ -702,7 +761,7 @@ async def handle_select_number(message: Message, state: FSMContext):
 
         markup = None
 
-        await state.clear()
+        
         if survey_results_values:
             markup = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text=f"Показать результаты опроса", callback_data=json.dumps(
@@ -824,7 +883,7 @@ async def send_votes(message: types.Message):
 
 @main_router.message(Command('otpusk'))
 async def handle_otpusk_command(message: types.Message, days_ahead=30):
-    from main import bot
+    
     await bot.send_message(message.chat.id, '🏝Загружаю️')
     await log_user_data_from_message(message)
     otpusk_data = await load_otpusk_data()
@@ -896,55 +955,315 @@ async def handle_schools_info(query):
 
 
 @main_router.callback_query(F.data.contains("survey"))
-async def handle_survey_chart(query):
-    print("handle_survey_chart called with query data:", query.data)
-    chat_id = json.loads(query.data)["chat_id"]
+async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
+    from main import bot
+    
+    data = await state.get_data()
+    print(f'data in multipl: {data}')
+    
+    
+    np = data['np']
+    
+        
+    await state.set_state(Survey.tele2_level)
 
-    if chat_id in survey_data_storage:
-        logging.info("Data found for chat_id %s", chat_id)
-        survey_data = survey_data_storage[chat_id]
 
-        data_list = []
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="4G", callback_data="tele2_4g"),
+        InlineKeyboardButton(text="3G", callback_data="tele2_3g"),
+        InlineKeyboardButton(text="2G", callback_data="tele2_2g")],
+        [InlineKeyboardButton(text="Услуги отсутствуют", callback_data="tele2_none"),
+        InlineKeyboardButton(text="Не знаю", callback_data="tele2_unknown")]
+    ])
 
-        # Создание списка словарей с данными для каждой строки
-        for data_row in survey_data:
-            # Убедимся, что у нас есть достаточно данных для каждого столбца
-            data_row += [None] * (14 - len(data_row))
+    # Отправляем сообщение с предложением оценить уровень сигнала
+    await bot.send_animation(chat_id=query.message.chat.id, 
+                         animation='CgACAgIAAxkBAAI2eWYyo3P2SfyNXkIX5jNUf7isiJw3AAKiRQACz4CYSQPpKHnOr6c9NAQ', 
+                         caption="Пожалуйста, оцените уровень сигнала Tele2:", 
+                         reply_markup=markup)
 
-            row_data = {
-                "Дата": data_row[0],
-                "ID": data_row[1],
-                "Имя": data_row[2],
-                "Фамилия": data_row[3],
-                "Ник": data_row[4],
-                "Ключ": data_row[5],
-                "Уровень_Tele2": data_row[6],
-                "Качество_Tele2": data_row[7],
-                "Уровень_Megafon": data_row[8],
-                "Качество_Megafon": data_row[9],
-                "Уровень_Beeline": data_row[10],
-                "Качество_Beeline": data_row[11],
-                "Уровень_MTS": data_row[12],
-                "Качество_MTS": data_row[13],
-            }
-            data_list.append(row_data)
+@main_router.callback_query(F.data.startswith("tele2"), StateFilter(Survey.tele2_level))
+async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
+    await state.update_data(tele2_level=query.data.split("_")[1])
+  #  print(f'data в tele2_level: {data}')
+    data = await state.get_data()
+    
+    user_id = query.from_user.id
+    message_id=query.message.message_id
+    survey_data = {
+        "tele2_level": data.get("tele2_level"),
+        # Дополнительные данные, если они есть
+    }
+   # survey_data = await state.update_data(tele2_level=query.data.split("_")[1])
+    np = data['np']
+    await save_survey_results(np, user_id, survey_data)
+    await state.set_state(Survey.tele2_quality)
 
-        # Преобразование данных в DataFrame
-        data_df = pd.DataFrame(data_list)
-        print("DataFrame created with data:", data_df)
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Низкое", callback_data="tele2_quality_low"),
+        InlineKeyboardButton(text="Среднее", callback_data="tele2_quality_mid"),
+        InlineKeyboardButton(text="Хорошее", callback_data="tele2_quality_good")],
+        [InlineKeyboardButton(text="Затрудняюсь ответить", callback_data="tele2_quality_unknown")]
+    ])
 
-        title = "Результаты опроса"  # Установите нужный заголовок для графика
-        try:
+    #await query.message.edit_text("Пожалуйста, оцените качество сигнала Tele2:", reply_markup=markup)
+    try:
+        # Attempt to edit the caption of the message
+        await bot.edit_message_caption(chat_id=query.message.chat.id,
+                                    message_id=query.message.message_id,
+                                    caption="Теперь качество",
+                                    reply_markup=markup)
+    except Exception as e:
+        print(f"Failed to edit message caption: {str(e)}")
+    
 
-            # передаем весь DataFrame, а не одну строку
-            await create_individual_radar_chart(chat_id, data_df, title)
-        except Exception as e:
 
-            logging.error("An error occurred: %s", e, exc_info=True)
 
-    else:
-        print(f"No data found for chat_id {chat_id}")
+@main_router.callback_query(F.data.startswith("tele2_quality"), StateFilter(Survey.tele2_quality))
+async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
+    
+    await state.update_data(tele2_quality=query.data.split("_")[2])
+    data = await state.get_data()
+  #  print(f'data в t2_quality: {data}')
+    user_id = query.from_user.id
+    survey_data = {
+        "tele2_quality": data.get("tele2_quality"),
+        # Дополнительные данные, если они есть
+    }
+    print(f'survey_data в tele2_quality {survey_data}')
+   # survey_data = await state.update_data(tele2_level=query.data.split("_")[1])
+    np = data['np']
+    await save_survey_results(np, user_id, survey_data)
+    await state.set_state(Survey.mts_level)
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="4G", callback_data="mts_4g"),
+        InlineKeyboardButton(text="3G", callback_data="mts_3g"),
+        InlineKeyboardButton(text="2G", callback_data="mts_2g")],
+        [InlineKeyboardButton(text="Услуги отсутствуют", callback_data="mts_none"),
+        InlineKeyboardButton(text="Не знаю", callback_data="mts_unknown")]
+    ])
 
+    # Отправляем сообщение с предложением оценить уровень сигнала
+    
+    try:
+        # Attempt to edit the caption of the message
+        await bot.edit_message_caption(chat_id=query.message.chat.id,
+                                    message_id=query.message.message_id,
+                                    caption="Оцените уровень сигнала МТС",
+                                    reply_markup=markup)
+    except Exception as e:
+        print(f"Failed to edit message caption: {str(e)}")
+
+
+
+
+
+
+
+
+
+@main_router.callback_query(F.data.startswith("mts"), StateFilter(Survey.mts_level))
+async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
+    await state.update_data(mts_level=query.data.split("_")[1])
+    data = await state.get_data()
+  #  print(f'data в mts level: {data}')
+    user_id = query.from_user.id
+    survey_data = {
+        "mts_level": data.get("mts_level"),
+        # Дополнительные данные, если они есть
+    }
+   # survey_data = await state.update_data(tele2_level=query.data.split("_")[1])
+    np = data['np']
+    await save_survey_results(np, user_id, survey_data)
+    await state.set_state(Survey.mts_quality)
+
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Низкое", callback_data="mts_quality_low"),
+        InlineKeyboardButton(text="Среднее", callback_data="mts_quality_mid"),
+        InlineKeyboardButton(text="Хорошее", callback_data="mts_quality_good")],
+        [InlineKeyboardButton(text="Затрудняюсь ответить", callback_data="mts_quality_unknown")]
+    ])
+
+    try:
+        # Attempt to edit the caption of the message
+        await bot.edit_message_caption(chat_id=query.message.chat.id,
+                                    message_id=query.message.message_id,
+                                    caption="Оцените качество услуг МТС",
+                                    reply_markup=markup)
+    except Exception as e:
+        print(f"Failed to edit message caption: {str(e)}")
+
+
+@main_router.callback_query(F.data.startswith("mts_quality"), StateFilter(Survey.mts_quality))
+async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
+    await state.update_data(mts_quality=query.data.split("_")[2])
+    data = await state.get_data()
+    
+ #   print(f'data в mts_quality: {data}')
+    user_id = query.from_user.id
+    survey_data = {
+        "mts_quality": data.get("mts_quality"),
+        # Дополнительные данные, если они есть
+    }
+   # survey_data = await state.update_data(tele2_level=query.data.split("_")[1])
+    np = data['np']
+    await save_survey_results(np, user_id, survey_data)
+    await state.set_state(Survey.megafon_level)
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="4G", callback_data="megafon_4g"),
+        InlineKeyboardButton(text="3G", callback_data="megafon_3g"),
+        InlineKeyboardButton(text="2G", callback_data="megafon_2g")],
+        [InlineKeyboardButton(text="Услуги отсутствуют", callback_data="megafon_none"),
+        InlineKeyboardButton(text="Не знаю", callback_data="megafon_unknown")]
+    ])
+
+    # Отправляем сообщение с предложением оценить уровень сигнала
+    
+    try:
+        # Attempt to edit the caption of the message
+        await bot.edit_message_caption(chat_id=query.message.chat.id,
+                                    message_id=query.message.message_id,
+                                    caption="Оцените уровень сигнала Мегафон",
+                                    reply_markup=markup)
+    except Exception as e:
+        print(f"Failed to edit message caption: {str(e)}")
+
+
+@main_router.callback_query(F.data.startswith("megafon"), StateFilter(Survey.megafon_level))
+async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
+    await state.update_data(megafon_level=query.data.split("_")[1])
+    data = await state.get_data()
+  #  print(f'data в megafon_level: {data}')
+    user_id = query.from_user.id
+    survey_data = {
+        "megafon_level": data.get("megafon_level"),
+        # Дополнительные данные, если они есть
+    }
+    
+    np = data['np']
+    await save_survey_results(np, user_id, survey_data)
+    await state.set_state(Survey.megafon_quality)
+
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Низкое", callback_data="megafon_quality_low"),
+        InlineKeyboardButton(text="Среднее", callback_data="megafon_quality_mid"),
+        InlineKeyboardButton(text="Хорошее", callback_data="megafon_quality_good")],
+        [InlineKeyboardButton(text="Затрудняюсь ответить", callback_data="megafon_quality_unknown")]
+    ])
+
+    try:
+        # Attempt to edit the caption of the message
+        await bot.edit_message_caption(chat_id=query.message.chat.id,
+                                    message_id=query.message.message_id,
+                                    caption="Оцените качество услуг Мегафон",
+                                    reply_markup=markup)
+    except Exception as e:
+        print(f"Failed to edit message caption: {str(e)}")
+
+
+@main_router.callback_query(F.data.startswith("megafon_quality"), StateFilter(Survey.megafon_quality))
+async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
+    await state.update_data(megafon_quality=query.data.split("_")[2])
+    data = await state.get_data()
+  #  print(f'data в megafon_quality: {data}')
+    
+    
+    user_id = query.from_user.id
+    survey_data = {
+        "megafon_quality": data.get("megafon_quality"),
+        # Дополнительные данные, если они есть
+    }
+   # survey_data = await state.update_data(tele2_level=query.data.split("_")[1])
+    np = data['np']
+    await save_survey_results(np, user_id, survey_data)
+    await state.set_state(Survey.beeline_level)
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="4G", callback_data="beeline_4g"),
+        InlineKeyboardButton(text="3G", callback_data="beeline_3g"),
+        InlineKeyboardButton(text="2G", callback_data="beeline_2g")],
+        [InlineKeyboardButton(text="Услуги отсутствуют", callback_data="beeline_none"),
+        InlineKeyboardButton(text="Не знаю", callback_data="beeline_unknown")]
+    ])
+
+    # Отправляем сообщение с предложением оценить уровень сигнала
+    
+    try:
+        # Attempt to edit the caption of the message
+        await bot.edit_message_caption(chat_id=query.message.chat.id,
+                                    message_id=query.message.message_id,
+                                    caption="Оцените уровень сигнала Билайн",
+                                    reply_markup=markup)
+    except Exception as e:
+        print(f"Failed to edit message caption: {str(e)}")
+
+
+@main_router.callback_query(F.data.startswith("beeline"), StateFilter(Survey.beeline_level))
+async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
+    await state.update_data(beeline_level=query.data.split("_")[1])
+    data = await state.get_data()
+   # print(f'data в beeline_level: {data}')
+    user_id = query.from_user.id
+    survey_data = {
+        "beeline_level": data.get("beeline_level"),
+        # Дополнительные данные, если они есть
+    }
+   # survey_data = await state.update_data(tele2_level=query.data.split("_")[1])
+    np = data['np']
+    await save_survey_results(np, user_id, survey_data)
+    await state.set_state(Survey.beeline_quality)
+
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Низкое", callback_data="beeline_quality_low"),
+        InlineKeyboardButton(text="Среднее", callback_data="beeline_quality_mid"),
+        InlineKeyboardButton(text="Хорошее", callback_data="beeline_quality_good")],
+        [InlineKeyboardButton(text="Затрудняюсь ответить", callback_data="beeline_quality_unknown")]
+    ])
+
+    try:
+        # Attempt to edit the caption of the message
+        await bot.edit_message_caption(chat_id=query.message.chat.id,
+                                    message_id=query.message.message_id,
+                                    caption="Оцените качество услуг Билайн",
+                                    reply_markup=markup)
+    except Exception as e:
+        print(f"Failed to edit message caption: {str(e)}")
+
+
+@main_router.callback_query(F.data.startswith("beeline_quality"), StateFilter(Survey.beeline_quality))
+async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
+    await state.update_data(beeline_quality=query.data.split("_")[2])
+    data = await state.get_data()
+   # print(f'data в beeline_quality: {data}')
+   
+    
+    
+    user_id = query.from_user.id
+    survey_data = {
+        "beeline_quality": data.get("beeline_quality"),
+        # Дополнительные данные, если они есть
+    }
+   # survey_data = await state.update_data(tele2_level=query.data.split("_")[1])
+    np = data['np']
+    await save_survey_results(np, user_id, survey_data)
+    await state.clear()
+
+    builder_loc = ReplyKeyboardBuilder()
+
+    builder_loc.button(text='поделиться локацией', request_location=True)
+  
+    
+    keyboard_loc = builder_loc.as_markup(resize_keyboard=True, one_time_keyboard=True)
+    
+    await query.message.answer("При желании можете поделиться своим местоположением 😊 \n (работает только со смартфона)", reply_markup=keyboard_loc)
+
+
+
+
+
+
+
+
+  #  await bot.answer_callback_query(query.id, f'номер выбранного населенного пункта: {np}')
 
 @main_router.callback_query(F.data.contains("szore"))
 async def handle_szoreg_info(query: types.CallbackQuery):

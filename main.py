@@ -8,7 +8,7 @@ from google_connections import init_redis, load_szoreg_values, load_yandex_2023_
 from aiogram import types
 from google.oauth2 import service_account
 from config import bot_token
-from handlers import handle_szoreg_info, handle_schools_info, handle_survey_chart
+#from handlers import handle_szoreg_info, handle_schools_info, handle_survey_chart
 from aiogram import Router, html
 from aiogram.client.default import DefaultBotProperties
 from aiogram.filters import Command, CommandStart
@@ -20,7 +20,7 @@ import time
 import logging
 import asyncio
 import sys
-from handlers import main_router
+
 
 
 response_storage = {}
@@ -45,25 +45,6 @@ def escape_markdown(text):
     return re.sub('([{}])'.format(''.join(markdown_escape_characters)), r'\\\1', text)
 
 '''
-#main_router.callback_query.register(handle_additional_info, lambda query: json.loads(query.data)["type"] == "additional_info")
-main_router.callback_query.register(handle_szoreg_info, lambda query: json.loads(query.data)["type"] == "szoreg_info")
-
-main_router.callback_query.register(handle_schools_info, lambda query: json.loads(query.data)["type"] == "schools_info")
-main_router.callback_query.register(handle_survey_chart, lambda query: json.loads(query.data)["type"] == "survey_chart")
-
-
-
-
-
-
-@main_router.message(Command('help'))
-async def handle_help_command(message: types.Message):
-    await log_user_data_from_message(message)
-    help_text = (
-        'Введи название населенного пункта или муниципального образования, чтобы получить информацию о связи'
-        'Чтобы узнать, кто сегодня в отпуске, жми /otpusk\n\n'
-        'Если остались вопросы, пиши @rejoller.')
-    await message.reply(help_text)
 
 
 
@@ -137,17 +118,17 @@ async def on_startup():
 async def main():
     
     dp = Dispatcher(storage = storage)
-    from handlers import main_router, select_number_router
+    from handlers import main_router
     dp.include_router(main_router)
-    dp.include_router(select_number_router)
+    
     await on_startup()
     print('Бот запущен и готов к приему сообщений')
 
-    # Запуск прослушивания обновлений
+  
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    #logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     asyncio.run(main())
 
     
