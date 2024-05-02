@@ -5,14 +5,15 @@ import re
 from additional import normalize_text_v2, split_message
 from fuzzywuzzy import fuzz
 import traceback
-from redis import Redis
+from aioredis import Redis
 import json
 redis = None
+spreadsheet = None
 async def init_redis():
     # Using aioredis.from_url to initialize the Redis client
     try:
         # Правильное формирование URL для подключения
-        redis = await Redis.from_url('redis://localhost:6379', decode_responses=True)
+        redis = Redis.from_url('redis://localhost:6379', decode_responses=True, db=0)
         print('Успешно подключено к Redis')
         return redis
     except Exception as e:
@@ -85,7 +86,7 @@ async def search_szoreg_values(query, redis):
         if data_json_list:
             # Преобразуем все JSON строки в объекты Python в одном выражении list comprehension
             found_values = [json.loads(data_json) for data_json in data_json_list]
-            print('found_values:', found_values)
+            
             return found_values
         else:
             print(f'Данные по запросу "{query_lower}" не найдены.')

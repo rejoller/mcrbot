@@ -1,6 +1,7 @@
 import openai
 
-openai.api_key = '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'
+openai.api_key = ''
+
 
 def send_request_to_vision(text):
     messages = [
@@ -15,5 +16,3 @@ def send_request_to_vision(text):
         temperature=1,
     )
     return response['choices'][0]['message']['content']
-
-

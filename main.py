@@ -8,12 +8,12 @@ from google_connections import init_redis, load_szoreg_values, load_yandex_2023_
 from aiogram import types
 from google.oauth2 import service_account
 from config import bot_token
-from handlers import handle_additional_info, handle_szoreg_info, handle_schools_info, handle_survey_chart
+#from handlers import handle_szoreg_info, handle_schools_info, handle_survey_chart
 from aiogram import Router, html
 from aiogram.client.default import DefaultBotProperties
 from aiogram.filters import Command, CommandStart
 from aiogram.enums import ParseMode
-from aiogram.types import Message
+from aiogram.fsm.storage.memory import MemoryStorage, BaseStorage
 import re
 import json
 import time
@@ -28,10 +28,10 @@ info_text_storage = {}
 is_main_menu_button_active = {}
 user_messages = {}
 
-bot = Bot.from_token(bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-storage = RedisStorage('redis://localhost:6379', 6379, db=5) 
-main_router = Router()  # storage is not passed here
 
+storage = RedisStorage.from_url("redis://localhost:6379/2")
+#storage = BaseStorage
+bot = Bot(bot_token)
 
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
@@ -44,26 +44,7 @@ def escape_markdown(text):
     markdown_escape_characters = ['*', '_', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
     return re.sub('([{}])'.format(''.join(markdown_escape_characters)), r'\\\1', text)
 
-
-main_router.callback_query.register(handle_additional_info, lambda query: json.loads(query.data)["type"] == "additional_info")
-main_router.callback_query.register(handle_szoreg_info, lambda query: json.loads(query.data)["type"] == "szoreg_info")
-
-main_router.register_callback_query_handler(handle_schools_info, lambda query: json.loads(query.data)["type"] == "schools_info")
-main_router.register_callback_query_handler(handle_survey_chart, lambda query: json.loads(query.data)["type"] == "survey_chart")
-
-
-
-
-
-
-@main_router.message(Command('help'))
-async def handle_help_command(message: types.Message):
-    await log_user_data_from_message(message)
-    help_text = (
-        'Введи название населенного пункта или муниципального образования, чтобы получить информацию о связи'
-        'Чтобы узнать, кто сегодня в отпуске, жми /otpusk\n\n'
-        'Если остались вопросы, пиши @rejoller.')
-    await message.reply(help_text)
+'''
 
 
 
@@ -104,13 +85,21 @@ async def handler_otpusk_message(message, employees_on_vacation):
     else:
         time.sleep(2)
         await message.reply("Сегодня никто не в отпуске.")
+'''
 
+
+import logging
+
+def setup_logging():
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 async def on_startup():
     try:
         print('Initializing Redis...')
+        #load_szoreg_values
         redis = await init_redis()
+
         agcm = gspread_asyncio.AsyncioGspreadClientManager(lambda: creds)
         gc = await agcm.authorize()
         spreadsheet = await gc.open_by_key(SPREADSHEET_ID)
@@ -123,25 +112,39 @@ async def on_startup():
         await load_survey_values(spreadsheet, redis)
         await load_votes_values(spreadsheet, redis)
 
+        from google_connections import spreadsheet
+       # await load_values(spreadsheet, redis)
+       # await load_szoreg_values(spreadsheet, redis)
+        #await load_pokazatel_504p_values(spreadsheet, redis)
+        #await load_schools_values(spreadsheet, redis)
+        #await load_yandex_2023_values(spreadsheet, redis)
+       # await load_ucn2_values(spreadsheet, redis)
+        #await load_survey_values(spreadsheet, redis)
+        #await load_votes_values(spreadsheet, redis)
+        # Предполагается, что у вас есть функция init_redis
+          
         print('Initialization and data loading complete.')
-        
     except Exception as e:
         print('Failed to initialize and load data:', str(e))
         traceback.print_exc()
 
+async def main():
+    
+    dp = Dispatcher(storage = storage)
+    from handlers import main_router
+    dp.include_router(main_router)
+    
+    await on_startup()
+    print('Бот запущен и готов к приему сообщений')
 
-async def main() -> None:
-
-    await main_router.start_polling(bot)
-
-
+  
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    
+    #logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    asyncio.run(main())
 
     
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-    asyncio.run(main())
 
     
 

@@ -3,3 +3,17 @@ credentials.json
 start_bot.sh
 users_data.csv
 myenv3.9/
+env_aiogram3/
+aio3/
+__pycache__/
+config.py
+credentials.json
+start_bot.sh
+users_data.csv
+myenv3.9/
+env_aiogram3/
+aio3/
+*.pyc
+*.pyo
+*.tmp
+.DS_Store
