@@ -531,7 +531,7 @@ async def handle_select_number(message: Message, state: FSMContext):
     from main import bot
 
     try:
-
+        await state.clear()
         found_values = data.get('found_values')
 
         index_text = message.text
@@ -751,17 +751,18 @@ async def handle_select_number(message: Message, state: FSMContext):
 
        
         await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup())
-
+        
         szoreg_values, schools_values = await asyncio.gather(
             search_szoreg_values(selected_np[4], redis),
             search_schools_values(selected_np[4], redis)
         )
-
+        print(f'szoreg_values: {szoreg_values}')
+        print(f'schools_values: {schools_values}')
         builder_2 = InlineKeyboardBuilder()
 
-        markup = None
-
         
+
+        markup = None
         if survey_results_values:
             markup = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text=f"Показать результаты опроса", callback_data=json.dumps(
@@ -825,7 +826,7 @@ async def handle_select_number(message: Message, state: FSMContext):
         print(
             f"Creating school button with data: {json.dumps({'type': 'school_info', 'chat_id': message.chat.id})}")
 
-        if markup:
+        if markup != None:
             await message.answer("доп инфо", reply_markup=builder_2.as_markup())
 
         else:
@@ -978,7 +979,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
 
     # Отправляем сообщение с предложением оценить уровень сигнала
     await bot.send_animation(chat_id=query.message.chat.id, 
-                         animation='CgACAgIAAxkBAAI2eWYyo3P2SfyNXkIX5jNUf7isiJw3AAKiRQACz4CYSQPpKHnOr6c9NAQ', 
+                         animation='CgACAgIAAxkBAAKOu2YzbAKOAAHWYO6V4BdMJjhC04UyXAACGkkAAhjNmUnrHF-oEgABzHA0BA', 
                          caption="Пожалуйста, оцените уровень сигнала Tele2:", 
                          reply_markup=markup)
 
@@ -998,6 +999,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     np = data['np']
     await save_survey_results(np, user_id, survey_data)
     await state.set_state(Survey.tele2_quality)
+    
 
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Низкое", callback_data="tele2_quality_low"),
@@ -1011,7 +1013,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
         # Attempt to edit the caption of the message
         await bot.edit_message_caption(chat_id=query.message.chat.id,
                                     message_id=query.message.message_id,
-                                    caption="Теперь качество",
+                                    caption="Оцените качество услуг Теле2",
                                     reply_markup=markup)
     except Exception as e:
         print(f"Failed to edit message caption: {str(e)}")
@@ -1035,6 +1037,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     np = data['np']
     await save_survey_results(np, user_id, survey_data)
     await state.set_state(Survey.mts_level)
+    await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="4G", callback_data="mts_4g"),
         InlineKeyboardButton(text="3G", callback_data="mts_3g"),
@@ -1047,10 +1050,10 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     
     try:
         # Attempt to edit the caption of the message
-        await bot.edit_message_caption(chat_id=query.message.chat.id,
-                                    message_id=query.message.message_id,
-                                    caption="Оцените уровень сигнала МТС",
-                                    reply_markup=markup)
+        await bot.send_animation(chat_id=query.message.chat.id, 
+                         animation='CgACAgIAAxkBAAKOu2YzbAKOAAHWYO6V4BdMJjhC04UyXAACGkkAAhjNmUnrHF-oEgABzHA0BA', 
+                         caption="Пожалуйста, оцените уровень сигнала МТС:", 
+                         reply_markup=markup)
     except Exception as e:
         print(f"Failed to edit message caption: {str(e)}")
 
@@ -1076,6 +1079,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     np = data['np']
     await save_survey_results(np, user_id, survey_data)
     await state.set_state(Survey.mts_quality)
+    
 
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Низкое", callback_data="mts_quality_low"),
@@ -1088,7 +1092,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
         # Attempt to edit the caption of the message
         await bot.edit_message_caption(chat_id=query.message.chat.id,
                                     message_id=query.message.message_id,
-                                    caption="Оцените качество услуг МТС",
+                                    caption="Оцените качество сигнала МТС",
                                     reply_markup=markup)
     except Exception as e:
         print(f"Failed to edit message caption: {str(e)}")
@@ -1109,6 +1113,9 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     np = data['np']
     await save_survey_results(np, user_id, survey_data)
     await state.set_state(Survey.megafon_level)
+    await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
+
+
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="4G", callback_data="megafon_4g"),
         InlineKeyboardButton(text="3G", callback_data="megafon_3g"),
@@ -1121,10 +1128,10 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     
     try:
         # Attempt to edit the caption of the message
-        await bot.edit_message_caption(chat_id=query.message.chat.id,
-                                    message_id=query.message.message_id,
-                                    caption="Оцените уровень сигнала Мегафон",
-                                    reply_markup=markup)
+        await bot.send_animation(chat_id=query.message.chat.id, 
+                         animation='CgACAgIAAxkBAAKOu2YzbAKOAAHWYO6V4BdMJjhC04UyXAACGkkAAhjNmUnrHF-oEgABzHA0BA', 
+                         caption="Пожалуйста, оцените уровень сигнала Мегафон:", 
+                         reply_markup=markup)
     except Exception as e:
         print(f"Failed to edit message caption: {str(e)}")
 
@@ -1177,6 +1184,11 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     np = data['np']
     await save_survey_results(np, user_id, survey_data)
     await state.set_state(Survey.beeline_level)
+
+    await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
+
+
+
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="4G", callback_data="beeline_4g"),
         InlineKeyboardButton(text="3G", callback_data="beeline_3g"),
@@ -1189,10 +1201,10 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     
     try:
         # Attempt to edit the caption of the message
-        await bot.edit_message_caption(chat_id=query.message.chat.id,
-                                    message_id=query.message.message_id,
-                                    caption="Оцените уровень сигнала Билайн",
-                                    reply_markup=markup)
+        await bot.send_animation(chat_id=query.message.chat.id, 
+                         animation='CgACAgIAAxkBAAKOu2YzbAKOAAHWYO6V4BdMJjhC04UyXAACGkkAAhjNmUnrHF-oEgABzHA0BA', 
+                         caption="Пожалуйста, оцените уровень сигнала Билайн:", 
+                         reply_markup=markup)
     except Exception as e:
         print(f"Failed to edit message caption: {str(e)}")
 
