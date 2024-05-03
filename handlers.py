@@ -979,7 +979,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
 
     # Отправляем сообщение с предложением оценить уровень сигнала
     await bot.send_animation(chat_id=query.message.chat.id, 
-                         animation='CgACAgIAAxkBAAKOu2YzbAKOAAHWYO6V4BdMJjhC04UyXAACGkkAAhjNmUnrHF-oEgABzHA0BA', 
+                         animation='CgACAgIAAxkBAAI3JGYzr-fxKymu9qXXtAuCU4dX-YzYAAJ5TAAC7Y2gSbDmfVNJr4eSNAQ', 
                          caption="Пожалуйста, оцените уровень сигнала Tele2:", 
                          reply_markup=markup)
 
@@ -1051,7 +1051,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     try:
         # Attempt to edit the caption of the message
         await bot.send_animation(chat_id=query.message.chat.id, 
-                         animation='CgACAgIAAxkBAAKOu2YzbAKOAAHWYO6V4BdMJjhC04UyXAACGkkAAhjNmUnrHF-oEgABzHA0BA', 
+                         animation='CgACAgIAAxkBAAI3JmYzsBKIR7h6AtBEjwSW3Mrk75ZUAAJ9TAAC7Y2gSQkq9dM9LTi2NAQ', 
                          caption="Пожалуйста, оцените уровень сигнала МТС:", 
                          reply_markup=markup)
     except Exception as e:
@@ -1129,7 +1129,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     try:
         # Attempt to edit the caption of the message
         await bot.send_animation(chat_id=query.message.chat.id, 
-                         animation='CgACAgIAAxkBAAKOu2YzbAKOAAHWYO6V4BdMJjhC04UyXAACGkkAAhjNmUnrHF-oEgABzHA0BA', 
+                         animation='CgACAgIAAxkBAAI3KGYzsEFc-BTf5jq8GpJ6NIeGDyHIAAKATAAC7Y2gSUUpIn2SLJKUNAQ', 
                          caption="Пожалуйста, оцените уровень сигнала Мегафон:", 
                          reply_markup=markup)
     except Exception as e:
@@ -1202,7 +1202,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     try:
         # Attempt to edit the caption of the message
         await bot.send_animation(chat_id=query.message.chat.id, 
-                         animation='CgACAgIAAxkBAAKOu2YzbAKOAAHWYO6V4BdMJjhC04UyXAACGkkAAhjNmUnrHF-oEgABzHA0BA', 
+                         animation='CgACAgIAAxkBAAI3KmYzsHKF86NJ2BUmE6UTvw4b30ebAAIaSQACGM2ZSdCWZ8it0XpBNAQ', 
                          caption="Пожалуйста, оцените уровень сигнала Билайн:", 
                          reply_markup=markup)
     except Exception as e:
