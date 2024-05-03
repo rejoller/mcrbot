@@ -1,0 +1,11 @@
+[0;1;31m●[0m mongod.service - MongoDB Database Server
+     Loaded: loaded (/lib/systemd/system/mongod.service; enabled; vendor preset: enabled)
+     Active: [0;1;31mfailed[0m (Result: exit-code) since Thu 2024-05-02 03:58:50 UTC; 13s ago
+       Docs: https://docs.mongodb.org/manual
+    Process: 896991 ExecStart=/usr/bin/mongod --config /etc/mongod.conf [0;1;31m(code=exited, status=100)[0m
+   Main PID: 896991 (code=exited, status=100)
+
+мая 02 03:58:50 mcr-telegram-bot systemd[1]: Started MongoDB Database Server.
+мая 02 03:58:50 mcr-telegram-bot mongod[896991]: {"t":{"$date":"2024-05-02T03:58:50.712Z"},"s":"I",  "c":"CONTROL",  "id":7484500, "ctx":"-","msg":"Environment variable MONGODB_CONFIG_OVERRIDE_NOFORK == 1, overriding \"processManagement.fork\" to false"}
+мая 02 03:58:50 mcr-telegram-bot systemd[1]: [0;1;39m[0;1;31m[0;1;39mmongod.service: Main process exited, code=exited, status=100/n/a[0m
+мая 02 03:58:50 mcr-telegram-bot systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185mmongod.service: Failed with result 'exit-code'.[0m
