@@ -19,3 +19,4 @@ mongodb/diagnostic.data/
 *.service
 telegram_mcr24_bot.service
 'udo journalctl -u telegram_mcr24_bot.service -e'
+animations_providers.py

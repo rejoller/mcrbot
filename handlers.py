@@ -28,7 +28,7 @@ import shutil
 from PIL import Image, ImageDraw, ImageFont
 import pandas as pd
 import json
-
+from animations_providers import (megafon_id, mts_id, tele2_id, beeline_id)
 from main import bot
 from google_connections import init_redis
 
@@ -979,7 +979,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
 
     # Отправляем сообщение с предложением оценить уровень сигнала
     await bot.send_animation(chat_id=query.message.chat.id, 
-                         animation='CgACAgIAAxkBAAKO0WY0XPO750ppf5vb_vymf2S2_5ArAAJ5TAAC7Y2gSRXv8TPTgf2eNAQ', 
+                         animation=tele2_id, 
                          caption="Пожалуйста, оцените уровень сигнала Tele2:", 
                          reply_markup=markup)
 
@@ -1051,7 +1051,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     try:
         # Attempt to edit the caption of the message
         await bot.send_animation(chat_id=query.message.chat.id, 
-                         animation='CgACAgIAAxkBAAKO02Y0XW9rTvwHrU37-A1hhP5AAy-pAAJiSgACGM2hSRnb5ctewYDUNAQ', 
+                         animation=mts_id, 
                          caption="Пожалуйста, оцените уровень сигнала МТС:", 
                          reply_markup=markup)
     except Exception as e:
@@ -1129,7 +1129,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     try:
         # Attempt to edit the caption of the message
         await bot.send_animation(chat_id=query.message.chat.id, 
-                         animation='CgACAgIAAxkBAAKO1WY0Xanc-f23DsgqiKiub6gKlnRJAAKATAAC7Y2gSRMz_5PngLLwNAQ', 
+                         animation=megafon_id, 
                          caption="Пожалуйста, оцените уровень сигнала Мегафон:", 
                          reply_markup=markup)
     except Exception as e:
@@ -1203,7 +1203,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     try:
         # Attempt to edit the caption of the message
         await bot.send_animation(chat_id=query.message.chat.id, 
-                         animation='CgACAgIAAxkBAAKO2WY0XeYvkJTECxFtYXIyzr7ZMmTTAALcTAAC7Y2gSQJWxCwQ2DtvNAQ', 
+                         animation=beeline_id, 
                          caption="Пожалуйста, оцените уровень сигнала Билайн:", 
                          reply_markup=markup)
     except Exception as e:
@@ -1259,6 +1259,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     np = data['np']
     await save_survey_results(np, user_id, survey_data)
     await state.clear()
+    await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
 
     builder_loc = ReplyKeyboardBuilder()
 
