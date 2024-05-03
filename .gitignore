@@ -1,0 +1,22 @@
+config.py
+credentials.json
+start_bot.sh
+users_data.csv
+myenv3.9/
+env_aiogram3/
+aio3/
+myvenv3.9/
+__pycache__/
+*.pyc
+*.pyo
+*.tmp
+.DS_Store
+mongodb/
+mongodb_data/
+mongodb/journal/
+mongodb/diagnostic.data/
+*.log
+*.service
+telegram_mcr24_bot.service
+'udo journalctl -u telegram_mcr24_bot.service -e'
+animations_providers.py
