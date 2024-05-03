@@ -5,3 +5,6 @@ users_data.csv
 myenv3.9/
 env_aiogram3/
 aio3/
+__pycache__/
+*.pyc
+mongodb_data/
