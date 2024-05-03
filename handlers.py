@@ -979,7 +979,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
 
     # Отправляем сообщение с предложением оценить уровень сигнала
     await bot.send_animation(chat_id=query.message.chat.id, 
-                         animation='CgACAgIAAxkBAAI3JGYzr-fxKymu9qXXtAuCU4dX-YzYAAJ5TAAC7Y2gSbDmfVNJr4eSNAQ', 
+                         animation='CgACAgIAAxkBAAKO0WY0XPO750ppf5vb_vymf2S2_5ArAAJ5TAAC7Y2gSRXv8TPTgf2eNAQ', 
                          caption="Пожалуйста, оцените уровень сигнала Tele2:", 
                          reply_markup=markup)
 
@@ -1051,7 +1051,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     try:
         # Attempt to edit the caption of the message
         await bot.send_animation(chat_id=query.message.chat.id, 
-                         animation='CgACAgIAAxkBAAI3JmYzsBKIR7h6AtBEjwSW3Mrk75ZUAAJ9TAAC7Y2gSQkq9dM9LTi2NAQ', 
+                         animation='CgACAgIAAxkBAAKO02Y0XW9rTvwHrU37-A1hhP5AAy-pAAJiSgACGM2hSRnb5ctewYDUNAQ', 
                          caption="Пожалуйста, оцените уровень сигнала МТС:", 
                          reply_markup=markup)
     except Exception as e:
@@ -1129,7 +1129,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     try:
         # Attempt to edit the caption of the message
         await bot.send_animation(chat_id=query.message.chat.id, 
-                         animation='CgACAgIAAxkBAAI3KGYzsEFc-BTf5jq8GpJ6NIeGDyHIAAKATAAC7Y2gSUUpIn2SLJKUNAQ', 
+                         animation='CgACAgIAAxkBAAKO1WY0Xanc-f23DsgqiKiub6gKlnRJAAKATAAC7Y2gSRMz_5PngLLwNAQ', 
                          caption="Пожалуйста, оцените уровень сигнала Мегафон:", 
                          reply_markup=markup)
     except Exception as e:
@@ -1198,11 +1198,12 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext ):
     ])
 
     # Отправляем сообщение с предложением оценить уровень сигнала
-    
+    #CgACAgIAAxkBAAKO2WY0XeYvkJTECxFtYXIyzr7ZMmTTAALcTAAC7Y2gSQJWxCwQ2DtvNAQ
+    #CgACAgIAAxkBAAKO12Y0XdG8exa0B19UHY15jEDLZpoYAALRTAAC7Y2gSU01Fs6vmKdjNAQ
     try:
         # Attempt to edit the caption of the message
         await bot.send_animation(chat_id=query.message.chat.id, 
-                         animation='CgACAgIAAxkBAAI3KmYzsHKF86NJ2BUmE6UTvw4b30ebAAIaSQACGM2ZSdCWZ8it0XpBNAQ', 
+                         animation='CgACAgIAAxkBAAKO2WY0XeYvkJTECxFtYXIyzr7ZMmTTAALcTAAC7Y2gSQJWxCwQ2DtvNAQ', 
                          caption="Пожалуйста, оцените уровень сигнала Билайн:", 
                          reply_markup=markup)
     except Exception as e:
