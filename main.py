@@ -103,16 +103,6 @@ async def on_startup():
         agcm = gspread_asyncio.AsyncioGspreadClientManager(lambda: creds)
         gc = await agcm.authorize()
         spreadsheet = await gc.open_by_key(SPREADSHEET_ID)
-        await load_values(spreadsheet, redis)
-        await load_szoreg_values(spreadsheet, redis)
-        await load_pokazatel_504p_values(spreadsheet, redis)
-        await load_schools_values(spreadsheet, redis)
-        await load_yandex_2023_values(spreadsheet, redis)
-        await load_ucn2_values(spreadsheet, redis)
-        await load_survey_values(spreadsheet, redis)
-        await load_votes_values(spreadsheet, redis)
-
-        from google_connections import spreadsheet
         #await load_values(spreadsheet, redis)
         #await load_szoreg_values(spreadsheet, redis)
         #await load_pokazatel_504p_values(spreadsheet, redis)
@@ -121,7 +111,6 @@ async def on_startup():
         #await load_ucn2_values(spreadsheet, redis)
         #await load_survey_values(spreadsheet, redis)
         #await load_votes_values(spreadsheet, redis)
-        # Предполагается, что у вас есть функция init_redis
           
         print('Initialization and data loading complete.')
     except Exception as e:
