@@ -378,6 +378,10 @@ async def handle_text(message: Message, state: FSMContext):
 
             await bot.send_location(message.chat.id, latitude, longitude, heading=10, proximity_alert_radius=200)
 
+            
+
+
+
             messages = split_message(response)
             survey_builder = InlineKeyboardBuilder()
             markup = InlineKeyboardMarkup(inline_keyboard=[
@@ -407,6 +411,9 @@ async def handle_text(message: Message, state: FSMContext):
 
             builder = InlineKeyboardBuilder()
             survey_data_storage[message.chat.id] = survey_results_values
+            
+            
+
 
             if survey_results_values:
 
@@ -467,7 +474,7 @@ async def handle_text(message: Message, state: FSMContext):
                 ])
                 builder.attach(InlineKeyboardBuilder.from_markup(markup))
 
-            if markup != None:
+            if schools_values or szoreg_values:
                 await message.answer("доп инфо", reply_markup=builder.as_markup())
 
                 # await bot.send_message(message.chat.id, "⬇️Дополнительная информация⬇️", reply_markup=inline_keyboard)
@@ -741,7 +748,7 @@ async def handle_select_number(message: Message, state: FSMContext):
         print(f'schools_values: {schools_values}')
         builder_2 = InlineKeyboardBuilder()
 
-        markup = None
+        
         if survey_results_values:
             markup = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text=f"Показать результаты опроса", callback_data=json.dumps(
@@ -805,7 +812,7 @@ async def handle_select_number(message: Message, state: FSMContext):
         print(
             f"Creating school button with data: {json.dumps({'type': 'school_info', 'chat_id': message.chat.id})}")
 
-        if markup != None:
+        if schools_values or szoreg_values:
             await message.answer("доп инфо", reply_markup=builder_2.as_markup())
 
         else:
