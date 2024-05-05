@@ -951,23 +951,27 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
 async def handle_show_survey_results(query: types.CallbackQuery, state: FSMContext):
     print('в обработчике отправки результатов')
     data = await state.get_data()
-    print(f'data: {data}')
-    # Проверяем, что 'found_values' существует и является списком
-    if 'found_values' in data and isinstance(data['found_values'], list):
-        # Допустим, что каждый элемент в списке - это словарь
-        if len(data['found_values']) > 0 and isinstance(data['found_values'][0], dict):
-            found_values = data['found_values'][0]  # работаем с первым словарем в списке
-            mts_level = found_values.get('mts_level', 'не найдено')
-            megafon_level = found_values.get('megafon_level', 'не найдено')
+
+    if 'found_values' in data:
+        found_values = data['found_values']
+        if isinstance(found_values, list) and len(found_values) > 0 and len(found_values[0]) > 8:
+            telecommunication_info = found_values[0][3]
+            telecom_parts = telecommunication_info.split(',')
+            mts_info = next((part for part in telecom_parts if 'МТС' in part), 'МТС: не найдено')
+            megafon_info = next((part for part in telecom_parts if 'Мегафон' in part), 'Мегафон: не найдено')
+            result_str = f'MTS уровень сигнала: {mts_info}, Megafon уровень сигнала: {megafon_info}'
         else:
-            mts_level = 'не найдено'
-            megafon_level = 'не найдено'
-        result_str = f'MTS уровень сигнала: {mts_level}, Megafon уровень сигнала: {megafon_level}'
+            result_str = "Недостаточно данных для вывода информации"
     else:
-        result_str = "Данные не найдены или неверный формат данных"
+        result_str = "Данные не найдены"
 
     print(f'data: {result_str}')
-    await query.bot.answer_callback_query(query.id, result_str)
+    # Использование метода answer для отправки сообщения в чат
+    await query.message.answer(result_str)
+    # Вызов answer_callback_query для закрытия уведомления без текста
+    await query.answer()
+
+
 
 
 
