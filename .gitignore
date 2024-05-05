@@ -20,3 +20,5 @@ mongodb/diagnostic.data/
 telegram_mcr24_bot.service
 'udo journalctl -u telegram_mcr24_bot.service -e'
 animations_providers.py
+udo systemctl status mongod/
+udo journalctl -p err/

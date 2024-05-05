@@ -10,6 +10,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import Message
 from datetime import datetime, timedelta
 import csv
+from mongo_connect import show_collection_data
 from mongo_connect import save_survey_results
 from google_connections import get_authorized_client_and_spreadsheet, search_yandex_2023_values, search_in_pokazatel_504p, search_in_ucn2, search_schools_values, search_survey_results, load_otpusk_data, search_values, search_values_levenshtein, search_szoreg_values, get_value, init_redis
 from openai_file import handle_digital_ministry_info
@@ -205,24 +206,16 @@ async def handle_text(message: Message, state: FSMContext):
             yandex_2023_response = ''
             pokazatel_504p_lines = []
 
-            if len(found_values) > 0 and len(found_values[0]) > 4:
-                # Подразумевается, что если условие выполнено, то можно безопасно обращаться к found_values[5][4]
 
-                ucn2_values, yandex_2023_values, pokazatel_504p_values, survey_results_values = await asyncio.gather(
-                    search_in_ucn2(found_values[0][4], redis),
-                    search_yandex_2023_values(found_values[0][4], redis),
-                    search_in_pokazatel_504p(found_values[0][4], redis),
-                    search_survey_results(found_values[0][4], redis)
-                )
-            else:
                 # Если условие не выполнено, значит индекса [5][4] нет, и нужно обойтись без search_in_results
-                ucn2_values, yandex_2023_values, pokazatel_504p_values = await asyncio.gather(
-                    search_in_ucn2(found_values[0][4], redis),
-                    search_yandex_2023_values(found_values[0][4], redis),
-                    search_in_pokazatel_504p(found_values[0][4], redis)
-                )
-                survey_results_values = None
-
+            ucn2_values, yandex_2023_values, pokazatel_504p_values = await asyncio.gather(
+                search_in_ucn2(found_values[0][4], redis),
+                search_yandex_2023_values(found_values[0][4], redis),
+                search_in_pokazatel_504p(found_values[0][4], redis)
+            )
+             
+            survey_results_values = await show_collection_data(np = found_values[0][4])
+            print(f'данные из монго: {survey_results_values}')
             if found_values_a:
                 for row in found_values_a:
                     # Создаем словарь с операторами и их значениями, используя метод get для безопасного обращения к элементам списка
@@ -412,17 +405,19 @@ async def handle_text(message: Message, state: FSMContext):
             builder = InlineKeyboardBuilder()
             survey_data_storage[message.chat.id] = survey_results_values
             
-            
-
-
             if survey_results_values:
+                
 
-                markup = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="Показать результаты опроса", callback_data=json.dumps(
-                        {"type": "survey_chart", "chat_id": message.chat.id}))]
+                callback_data = json.dumps(
+                    {"type": "survey_results", "chat_id": message.chat.id})
+
+
+                markup = InlineKeyboardMarkup(inline_keyboard= [
+                    [InlineKeyboardButton(
+                        text="Показать результаты опроса", callback_data=callback_data)]
                 ])
                 builder.attach(InlineKeyboardBuilder.from_markup(markup))
-                await message.answer("Найдены результаты опроса. Хотите посмотреть?", reply_markup=builder.as_markup())
+                
 
         #  if szofed_values or espd_values or szoreg_values or schools_values or info_text_storage:
 
@@ -562,12 +557,11 @@ async def handle_select_number(message: Message, state: FSMContext):
         yandex_2023_values, pokazatel_504p_values, survey_results_values, ucn2_values = await asyncio.gather(
             search_yandex_2023_values(selected_np[4], redis),
             search_in_pokazatel_504p(selected_np[4], redis),
-            search_survey_results(selected_np[4], redis),
-
             search_in_ucn2(selected_np[4], redis)
         )
         print('pokazatel_504p_values:', pokazatel_504p_values,)
-
+        survey_results_values = await show_collection_data(np = selected_np[4])
+        print(f'данные из монго: {survey_results_values}')
         # Создаем словарь с операторами и их значениями
         operators = {
             "    |Tele2": selected_np[39] if len(selected_np) > 39 else None,
@@ -904,22 +898,7 @@ async def handle_otpusk_command(message: types.Message, days_ahead=30):
         await bot.send_message(message.chat.id, msg, parse_mode='Markdown')
 
 
-'''
-async def handle_additional_info(query):
-    from main import bot
-    chat_id = json.loads(query.data)["chat_id"]
-    if chat_id in additional_info_storage:
-        response = additional_info_storage[chat_id]
-        messages = split_message(response)
-        for message_group in messages:
-            msg = ''.join(message_group)
-            if msg.strip():  # Проверка, что сообщение не пустое
-                await bot.send_message(chat_id, msg, parse_mode='Markdown')
 
-        await bot.answer_callback_query(query.id)
-    else:
-        await bot.answer_callback_query(query.id, "Дополнительная информация недоступна.")
-'''
 
 
 @main_router.callback_query(F.data.contains("school"))
@@ -941,7 +920,7 @@ async def handle_schools_info(query):
         await bot.answer_callback_query(query.id, "Информация из таблицы по школам недоступна.")
 
 
-@main_router.callback_query(F.data.contains("survey"))
+@main_router.callback_query(F.data == "start_survey")
 async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
     from main import bot
 
@@ -965,6 +944,36 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
                              animation=tele2_id,
                              caption="Пожалуйста, оцените уровень сигнала Tele2:",
                              reply_markup=markup)
+
+
+
+@main_router.callback_query(F.data.contains("survey_res"))
+async def handle_show_survey_results(query: types.CallbackQuery, state: FSMContext):
+    print('в обработчике отправки результатов')
+    data = await state.get_data()
+    print(f'data: {data}')
+    # Проверяем, что 'found_values' существует и является списком
+    if 'found_values' in data and isinstance(data['found_values'], list):
+        # Допустим, что каждый элемент в списке - это словарь
+        if len(data['found_values']) > 0 and isinstance(data['found_values'][0], dict):
+            found_values = data['found_values'][0]  # работаем с первым словарем в списке
+            mts_level = found_values.get('mts_level', 'не найдено')
+            megafon_level = found_values.get('megafon_level', 'не найдено')
+        else:
+            mts_level = 'не найдено'
+            megafon_level = 'не найдено'
+        result_str = f'MTS уровень сигнала: {mts_level}, Megafon уровень сигнала: {megafon_level}'
+    else:
+        result_str = "Данные не найдены или неверный формат данных"
+
+    print(f'data: {result_str}')
+    await query.bot.answer_callback_query(query.id, result_str)
+
+
+
+
+
+
 
 
 @main_router.callback_query(F.data.startswith("tele2"), StateFilter(Survey.tele2_level))
