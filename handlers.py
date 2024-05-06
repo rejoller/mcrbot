@@ -817,15 +817,7 @@ async def handle_select_number(message: Message, state: FSMContext):
         await bot.send_message(message.chat.id, 'Введено некорректное значение. Пожалуйста, введите число в диапазоне от 1 до {}.'.format(len(found_values)))
 
 
-@main_router.message(F.text == "привет")
-async def hello(message: types.Message):
-    await message.answer("Я с тобой не разговариваю!")
 
-
-# Стартовое сообщение (когда пользователь нажал /start)
-
-
-# отправка файла с итогами голосования по УЦН 2024 (когда пользователь нажал /votes)
 @main_router.message(Command("votes"))
 async def send_votes(message: types.Message):
     from main import bot
