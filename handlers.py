@@ -10,9 +10,10 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import Message
 from datetime import datetime, timedelta
 import csv
-from mongo_connect import show_collection_data
+
 from mongo_connect import save_survey_results
-from google_connections import get_authorized_client_and_spreadsheet, search_yandex_2023_values, search_in_pokazatel_504p, search_in_ucn2, search_schools_values, search_survey_results, load_otpusk_data, search_values, search_values_levenshtein, search_szoreg_values, get_value, init_redis
+from google_connections import get_authorized_client_and_spreadsheet, search_yandex_2023_values, search_in_pokazatel_504p, search_in_ucn2, search_schools_values, load_otpusk_data, search_values, search_values_levenshtein, search_szoreg_values, get_value, init_redis
+from mongo_connect import search_survey_results
 from openai_file import handle_digital_ministry_info
 import asyncio
 from additional import split_message, create_excel_file_2
@@ -42,7 +43,6 @@ response_storage = {}
 main_router = Router()
 
 
-
 def log_user_data(user_id, first_name, last_name, username, message_text):
     file_path = 'users_data.csv'
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -63,8 +63,6 @@ def log_user_data(user_id, first_name, last_name, username, message_text):
                         last_name, username, message_text])
 
 
-
-
 async def log_user_data_from_message(message):
     user_id = message.from_user.id
     first_name = message.from_user.first_name
@@ -73,8 +71,6 @@ async def log_user_data_from_message(message):
     message_text = message.text
 
     log_user_data(user_id, first_name, last_name, username, message_text)
-
-# Состояние ожидания введения номера пользователем (используется когда населенных пунктов с одинаковым названием несколько)
 
 
 class Form(StatesGroup):
@@ -128,7 +124,7 @@ async def handle_start(message: Message, state: FSMContext):
         f'Я бот министерства цифрового развития Красноярского края!'
         '\n Введи наименование любого населенного пункта края, '
 
-        'чтобы получить информацию о связи в нем. По вопросам обращаться к @rejoller.')
+        'чтобы получить информацию о связи в нем или оставить обратную связь о качестве услуг\n')
 
 
 @main_router.message(F.location)
@@ -206,15 +202,14 @@ async def handle_text(message: Message, state: FSMContext):
             yandex_2023_response = ''
             pokazatel_504p_lines = []
 
-
-                # Если условие не выполнено, значит индекса [5][4] нет, и нужно обойтись без search_in_results
+            # Если условие не выполнено, значит индекса [5][4] нет, и нужно обойтись без search_in_results
             ucn2_values, yandex_2023_values, pokazatel_504p_values = await asyncio.gather(
                 search_in_ucn2(found_values[0][4], redis),
                 search_yandex_2023_values(found_values[0][4], redis),
                 search_in_pokazatel_504p(found_values[0][4], redis)
             )
-             
-            survey_results_values = await show_collection_data(np = found_values[0][4])
+
+            survey_results_values = await search_survey_results(np=found_values[0][4])
             print(f'данные из монго: {survey_results_values}')
             if found_values_a:
                 for row in found_values_a:
@@ -371,10 +366,6 @@ async def handle_text(message: Message, state: FSMContext):
 
             await bot.send_location(message.chat.id, latitude, longitude, heading=10, proximity_alert_radius=200)
 
-            
-
-
-
             messages = split_message(response)
             survey_builder = InlineKeyboardBuilder()
             markup = InlineKeyboardMarkup(inline_keyboard=[
@@ -404,20 +395,17 @@ async def handle_text(message: Message, state: FSMContext):
 
             builder = InlineKeyboardBuilder()
             survey_data_storage[message.chat.id] = survey_results_values
-            
+
             if survey_results_values:
-                
 
                 callback_data = json.dumps(
                     {"type": "survey_results", "chat_id": message.chat.id})
 
-
-                markup = InlineKeyboardMarkup(inline_keyboard= [
+                markup = InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(
                         text="Показать результаты опроса", callback_data=callback_data)]
                 ])
                 builder.attach(InlineKeyboardBuilder.from_markup(markup))
-                
 
         #  if szofed_values or espd_values or szoreg_values or schools_values or info_text_storage:
 
@@ -502,14 +490,12 @@ async def handle_text(message: Message, state: FSMContext):
         builder_1.button(text="Отмена")
         builder_1.adjust(5)
         keyboard_1 = builder_1.as_markup(
-            resize_keyboard=True, one_time_keyboard=True)
+            resize_keyboard=True, one_time_keyboard=True, input_field_placeholder="Выберите населенный пункт")
 
         saved_data = await state.update_data()
         await state.set_state(Form.waiting_for_number)
 
         await bot.send_message(message.chat.id, 'Выберите номер необходимого населенного пункта:', reply_markup=keyboard_1)
-
-        logging.info(f"Получен текст сообщения: {message.text}")
 
 
 @main_router.message(StateFilter(Form.waiting_for_number))
@@ -520,11 +506,11 @@ async def handle_select_number(message: Message, state: FSMContext):
     from main import bot
 
     try:
-        await state.clear()
+
         found_values = data.get('found_values')
 
         index_text = message.text
-        print(f'введенное значение: {index_text}')
+
         user_first_name = message.from_user.first_name
         chat_id = message.chat.id
         response = ''
@@ -543,26 +529,25 @@ async def handle_select_number(message: Message, state: FSMContext):
             return
 
         index = int(index_text)
-        print(f'выбранный населенный пункт {index}')
+
         if index <= 0 or index > len(found_values):
             await bot.send_message(chat_id, f'Введено некорректное значение. Пожалуйста, введите число в диапазоне от 1 до {len(found_values)}.')
             return
 
         selected_np = found_values[index - 1]
+        await state.clear()
         await state.update_data(found_values=selected_np)
         await state.update_data(np=selected_np[4])
         latitude = selected_np[7]
         longitude = selected_np[8]
 
-        yandex_2023_values, pokazatel_504p_values, survey_results_values, ucn2_values = await asyncio.gather(
+        yandex_2023_values, pokazatel_504p_values, ucn2_values = await asyncio.gather(
             search_yandex_2023_values(selected_np[4], redis),
             search_in_pokazatel_504p(selected_np[4], redis),
             search_in_ucn2(selected_np[4], redis)
         )
-        print('pokazatel_504p_values:', pokazatel_504p_values,)
-        survey_results_values = await show_collection_data(np = selected_np[4])
-        print(f'данные из монго: {survey_results_values}')
-        # Создаем словарь с операторами и их значениями
+        survey_results_values = await search_survey_results(np=selected_np[4])
+
         operators = {
             "    |Tele2": selected_np[39] if len(selected_np) > 39 else None,
             "    |Мегафон": selected_np[40] if len(selected_np) > 40 else None,
@@ -712,7 +697,7 @@ async def handle_select_number(message: Message, state: FSMContext):
 
         response += f'\n{operators_response}\n'
 
-        response += f'{ucn2_response}{yandex_2023_response}{votes_response}\nЕсли хочешь узнать о голосовании УЦН 2.0 2024 жми /votes\nБот для проведения опросов жителей - <a href="http://t.me/providers_rating_bot">@providers_rating_bot</a>'
+        response += f'{ucn2_response}{yandex_2023_response}{votes_response}\n'
 
         info_text_storage[message.chat.id] = response
 
@@ -742,7 +727,6 @@ async def handle_select_number(message: Message, state: FSMContext):
         print(f'schools_values: {schools_values}')
         builder_2 = InlineKeyboardBuilder()
 
-        
         if survey_results_values:
             markup = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text=f"Показать результаты опроса", callback_data=json.dumps(
@@ -817,40 +801,6 @@ async def handle_select_number(message: Message, state: FSMContext):
         await bot.send_message(message.chat.id, 'Введено некорректное значение. Пожалуйста, введите число в диапазоне от 1 до {}.'.format(len(found_values)))
 
 
-
-@main_router.message(Command("votes"))
-async def send_votes(message: types.Message):
-    from main import bot
-    from google_connections import get_votes_data
-    try:
-        gc, spreadsheet = await get_authorized_client_and_spreadsheet()
-        data = await get_votes_data(spreadsheet)
-        excel_data = create_excel_file_2(data)  # убрали headers здесь
-        await log_user_data_from_message(message)
-        # Сохраняем данные Excel во временный файл
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as temp:
-            temp.write(excel_data.read())
-            temp_filename = temp.name
-
-        # Переименовываем файл перед отправкой
-        final_filename = "Голосование УЦН 2_0 2024.xlsx"
-        shutil.move(temp_filename, final_filename)
-
-        # Отправляем файл
-        with open(final_filename, "rb") as temp:
-            await bot.send_document(message.chat.id, temp, caption='Информация о голосовании УЦН 2.0 2024')
-
-        # Удаляем файл после отправки
-        os.remove(final_filename)
-
-    except Exception as e:
-        tb = traceback.format_exc()  # Получить трассировку стека
-        # Печатает трассировку стека
-        print("An error occurred while handling /votes:", tb)
-        # Включает ошибку и трассировку стека в ответ пользователю
-        await message.reply(f'Произошла ошибка при обработке вашего запроса: {e}\n{tb}')
-
-
 # Функции для работы команды /otpusk
 
 
@@ -888,9 +838,6 @@ async def handle_otpusk_command(message: types.Message, days_ahead=30):
     for msg in messages:
 
         await bot.send_message(message.chat.id, msg, parse_mode='Markdown')
-
-
-
 
 
 @main_router.callback_query(F.data.contains("school"))
@@ -938,34 +885,54 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
                              reply_markup=markup)
 
 
-
 @main_router.callback_query(F.data.contains("survey_res"))
 async def handle_show_survey_results(query: types.CallbackQuery, state: FSMContext):
     print('в обработчике отправки результатов')
     data = await state.get_data()
+    np = data['np']
+    survey_res = await search_survey_results(np)
+    builder = InlineKeyboardBuilder()
+    survey_results_dict = {}
+    for item in survey_res:
+        # Создаем информативный текст для кнопки
+        user_id = item['user_id']
+        user_info = f"ID {item['user_id']}: Tele2 {item['tele2_level']} {item['tele2_quality']}, MTS {item['mts_level']}"
+        builder.button(text=f"🏢 {item['user_id']}", callback_data=f"detailed_survey_data:{item['user_id']}")
+        
+        survey_results_dict[user_id] = item
+    
+    await state.update_data(survey_results_dict = survey_results_dict)
 
-    if 'found_values' in data:
-        found_values = data['found_values']
-        if isinstance(found_values, list) and len(found_values) > 0 and len(found_values[0]) > 8:
-            telecommunication_info = found_values[0][3]
-            telecom_parts = telecommunication_info.split(',')
-            mts_info = next((part for part in telecom_parts if 'МТС' in part), 'МТС: не найдено')
-            megafon_info = next((part for part in telecom_parts if 'Мегафон' in part), 'Мегафон: не найдено')
-            result_str = f'MTS уровень сигнала: {mts_info}, Megafon уровень сигнала: {megafon_info}'
-        else:
-            result_str = "Недостаточно данных для вывода информации"
+
+    # Получаем клавиатуру для использования в ответе
+    keyboard = builder.as_markup()
+
+    # Отправляем сообщение с инлайн-клавиатурой
+    await query.message.answer(
+        text="Выберите пользователя для детальной информации:",
+        reply_markup=keyboard
+    )
+
+
+
+@main_router.callback_query(F.data.contains("detailed_survey_data"))
+async def show_user_data(query: types.CallbackQuery, state: FSMContext):
+    user_id = query.data.split(":")[1]
+    data = await state.get_data()
+    print(f'data: {data}')
+    survey_results_dict = data.get('survey_results_dict', {})
+    survey_results = survey_results_dict.get(user_id)
+
+    if survey_results:
+        response_text = (f"Детальная информация для ID {user_id}:\n"
+                         f"Tele2 Level: {survey_results['tele2_level']} {survey_results['tele2_quality']}\n"
+                         f"MTS Level: {survey_results['mts_level']} {survey_results['mts_quality']}\n"
+                         f"Megafon Level: {survey_results['megafon_level']} {survey_results['megafon_quality']}\n"
+                         f"Beeline Level: {survey_results['beeline_level']} {survey_results['beeline_quality']}")
     else:
-        result_str = "Данные не найдены"
+        response_text = "Информация по данному пользователю не найдена."
 
-    print(f'data: {result_str}')
-    # Использование метода answer для отправки сообщения в чат
-    await query.message.answer(result_str)
-    # Вызов answer_callback_query для закрытия уведомления без текста
-    await query.answer()
-
-
-
-
+    await query.message.answer(text=response_text)
 
 
 
@@ -1130,17 +1097,14 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
 async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
     await state.update_data(mts_quality=query.data.split("_")[2])
     data = await state.get_data()
-    
+    np = data['np']
     user_id = query.from_user.id
     survey_data = {
         "mts_quality": data.get("mts_quality"),
 
     }
-
-    np = data['np']
+    await save_survey_results(np, user_id, survey_data)
     
-
-   
 
     await state.set_state(Survey.megafon_level)
     await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
@@ -1154,17 +1118,17 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
     ])
 
     try:
-    
+
         await bot.send_animation(chat_id=query.message.chat.id,
-                                    animation=megafon_id,
-                                    caption="Пожалуйста, оцените уровень сигнала Мегафон:",
-                                    reply_markup=markup)
+                                 animation=megafon_id,
+                                 caption="Пожалуйста, оцените уровень сигнала Мегафон:",
+                                 reply_markup=markup)
     except Exception as e:
         print(f"Failed to edit message caption: {str(e)}")
 
 
 @main_router.callback_query(F.data.startswith("megafon"), StateFilter(Survey.megafon_level))
-async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
+async def megafon_level_survey(query: types.CallbackQuery, state: FSMContext):
     await state.update_data(megafon_level=query.data.split("_")[1])
     data = await state.get_data()
 
@@ -1177,11 +1141,10 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
     np = data['np']
     selected_option = query.data.split("_")[1]
 
-
     await save_survey_results(np, user_id, survey_data)
     if selected_option == 'none':
         np = data['np']
-        
+
         await state.set_state(Survey.beeline_level)
 
         await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
@@ -1203,25 +1166,24 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
         except Exception as e:
             print(f"Failed to edit message caption: {str(e)}")
 
-
     else:
         await state.set_state(Survey.megafon_quality)
 
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="Низкое", callback_data="megafon_quality_low"),
-            InlineKeyboardButton(
+             InlineKeyboardButton(
                 text="Среднее", callback_data="megafon_quality_mid"),
-            InlineKeyboardButton(text="Хорошее", callback_data="megafon_quality_good")],
+             InlineKeyboardButton(text="Хорошее", callback_data="megafon_quality_good")],
             [InlineKeyboardButton(text="Затрудняюсь ответить",
-                                callback_data="megafon_quality_unknown")]
+                                  callback_data="megafon_quality_unknown")]
         ])
 
         try:
-    
+
             await bot.edit_message_caption(chat_id=query.message.chat.id,
-                                        message_id=query.message.message_id,
-                                        caption="Оцените качество услуг Мегафон",
-                                        reply_markup=markup)
+                                           message_id=query.message.message_id,
+                                           caption="Оцените качество услуг Мегафон",
+                                           reply_markup=markup)
         except Exception as e:
             print(f"Failed to edit message caption: {str(e)}")
 
@@ -1230,7 +1192,6 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
 async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
     await state.update_data(megafon_quality=query.data.split("_")[2])
     data = await state.get_data()
- 
 
     user_id = query.from_user.id
     survey_data = {
@@ -1276,14 +1237,14 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
     np = data['np']
     await save_survey_results(np, user_id, survey_data)
     if selected_option == 'none':
-        
-        
+
         await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
         builder_loc = ReplyKeyboardBuilder()
 
         builder_loc.button(text='поделиться локацией', request_location=True)
 
-        keyboard_loc = builder_loc.as_markup(resize_keyboard=True, one_time_keyboard=True)
+        keyboard_loc = builder_loc.as_markup(
+            resize_keyboard=True, one_time_keyboard=True)
 
         await query.message.answer("При желании можете поделиться своим местоположением 😊 \n (работает только со смартфона)", reply_markup=keyboard_loc)
 
@@ -1323,7 +1284,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
 
     np = data['np']
     await save_survey_results(np, user_id, survey_data)
-    
+
     await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
 
     builder_loc = ReplyKeyboardBuilder()
@@ -1372,96 +1333,3 @@ async def handle_szoreg_info(query: types.CallbackQuery):
         await query.bot.answer_callback_query(query.id, "Произошла ошибка при обработке запроса.")
         print(
             f"Exception: {e} Callback query didn't answer for chat ID {chat_id}")
-
-
-async def create_individual_radar_chart(chat_id, data_df, title):
-    print("create_individual_radar_chart called with data:", data_df)
-    from main import bot
-    # Создайте новое изображение с белым фоном
-    img_width, img_height = 1000, 600
-    img = Image.new('RGB', (img_width, img_height), 'white')
-    draw = ImageDraw.Draw(img)
-
-    # Добавьте заголовок
-    title_font_path = "fonts/ofont.ru_Geologica.ttf"
-    title_font = ImageFont.truetype(title_font_path, 30)
-    text_font = ImageFont.truetype(title_font_path, 18)
-
-    title_bbox = draw.textbbox((0, 0), title, font=title_font)
-    title_width, title_height = title_bbox[2] - \
-        title_bbox[0], title_bbox[3] - title_bbox[1]
-    draw.text(((img_width - title_width) // 2, 20),
-              title, fill="black", font=title_font)
-
-    # Загрузите логотипы и уменьшите их
-    logo_paths = [
-        'logos/tele2_1.png',
-        'logos/megafon_1.png',
-        'logos/beeline_1.png',
-        'logos/mts_1.png',
-    ]
-
-    logos = []
-    # Уменьшаем МТС в 3 раза меньше и увеличиваем Билайн в 2 раза больше
-    resize_factors = [0.1, 0.1, 0.1*2, 0.1/3]
-    for i, path in enumerate(logo_paths):
-        logo = Image.open(path)
-        logo_width, logo_height = logo.size
-        logos.append(logo.resize(
-            (int(logo_width * resize_factors[i]), int(logo_height * resize_factors[i]))))
-
-    # Добавьте логотипы
-    column_width = img_width // 4
-    for i, logo in enumerate(logos):
-        x = column_width * i + (column_width - logo.width) // 2
-        y = 100
-        if i in [1, 2]:  # индексы для Билайн и Мегафон
-            # Создаем отдельное изображение для наложения
-            logo_img = Image.new(
-                'RGBA', (img_width, img_height), (255, 255, 255, 0))
-            logo_img.paste(logo, (x, y))
-
-            # Накладываем логотип на основное изображение
-            img = Image.alpha_composite(
-                img.convert('RGBA'), logo_img).convert('RGB')
-        else:
-            # Для других логотипов просто вставляем их
-            img.paste(logo, (x, y))
-
-    # Создаем новый объект draw для текущего изображения
-    draw = ImageDraw.Draw(img)
-
-    # Сформулируйте текст для каждой строки в data_df и добавьте его на график
-    operator_columns = [
-        ('Уровень_Tele2', 'Качество_Tele2'),
-        ('Уровень_Megafon', 'Качество_Megafon'),
-        ('Уровень_Beeline', 'Качество_Beeline'),
-        ('Уровень_MTS', 'Качество_MTS')
-    ]
-
-    y_start = y + logos[0].height + 20
-    y_step = 20
-
-    for idx, row_series in data_df.iterrows():
-        for i, (level_column, quality_column) in enumerate(operator_columns):
-            # Проверка на наличие данных для каждого оператора
-            if pd.notnull(row_series[level_column]) or pd.notnull(row_series[quality_column]):
-                text = f"{row_series.get(level_column, 'Нет данных')} {row_series.get(quality_column, 'Нет данных')}"
-            else:
-                text = "Нет данных"
-
-            # Исправляем позиционирование текста
-            x = column_width * i + (column_width - logos[i].width) // 2
-            y_text = y_start + idx * y_step
-
-            draw.text((x, y_text), text, fill="black", font=text_font)
-
-    # Сохраните и отправьте изображение
-    temp_file_path = "temp_survey_result.png"
-    img.save(temp_file_path)
-
-    # Отправляем изображение пользователю
-    await bot.send_photo(chat_id, open(temp_file_path, 'rb'))
-
-    # Удаляем временный файл
-    os.remove(temp_file_path)
