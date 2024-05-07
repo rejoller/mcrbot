@@ -26,11 +26,6 @@ async def show_collection_data(np=None):
 from motor.motor_asyncio import AsyncIOMotorClient
 
 async def search_survey_results(np=None):
-    client = AsyncIOMotorClient('mongodb://localhost:27017')
-    db = client.survey_results
-    surveys_collection = db.network
-
-    # Проверка, передан ли конкретный _id для поиска
     if np is not None:
         query = {'_id': np}
     else:
@@ -56,7 +51,8 @@ async def search_survey_results(np=None):
                     'megafon_quality': user_data.get('megafon_quality', ''),
                     'beeline_level': user_data.get('beeline_level', ''),
                     'beeline_quality': user_data.get('beeline_quality', ''),
-                    'location': user_data.get('location', {})
+                    'location': user_data.get('location', {}),
+                    'contact': user_data.get('contact', {})
                 }
                 all_data.append(user_info)
 
@@ -75,3 +71,10 @@ async def save_user_location(user_id, location_data):
         {"$set": {f"results.{user_id}.location": location_data}}
     )
 
+async def save_user_contact(user_id, contact_data):
+    # Предполагаем, что contact_data это словарь вида {'contact': 'номер телефона'}
+    contact_number = contact_data.get('contact')
+    await surveys_collection.update_many(
+        {f"results.{user_id}": {"$exists": True}},
+        {"$set": {f"results.{user_id}.contact": contact_number}}
+    )

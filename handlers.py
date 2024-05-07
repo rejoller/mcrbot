@@ -138,6 +138,16 @@ async def handle_location(message: types.Message, state: FSMContext):
     await message.answer('спасибо😉')
     await save_user_location(user_id, location_data)
 
+@main_router.message(F.contact)
+async def handle_contacts(message: types.Message, state: FSMContext):
+    # Обработка локации
+    from mongo_connect import save_user_contact
+    user_id = message.from_user.id
+    contact_data = {"contact": message.contact.phone_number}
+    await message.answer('спасибо😉')
+    await save_user_contact(user_id, contact_data)
+
+
 
 @main_router.message(F.animation)
 async def echo_gif(message: Message):
@@ -421,7 +431,7 @@ async def handle_text(message: Message, state: FSMContext):
 
             builder = InlineKeyboardBuilder()
             survey_data_storage[message.chat.id] = survey_results_values
-
+            
             if survey_results_values:
 
                 callback_data = json.dumps(
@@ -429,7 +439,7 @@ async def handle_text(message: Message, state: FSMContext):
 
                 markup = InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(
-                        text="Показать результаты опроса", callback_data=callback_data)]
+                        text=f"Показать результаты опроса ({len(survey_results_values)})", callback_data=callback_data)]
                 ])
                 builder.attach(InlineKeyboardBuilder.from_markup(markup))
 
@@ -766,9 +776,12 @@ async def handle_select_number(message: Message, state: FSMContext):
        
         builder_2 = InlineKeyboardBuilder()
 
+        
+
         if survey_results_values:
+            survey_data_storage[message.chat.id] = survey_results_values
             markup = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text=f"Показать результаты опроса", callback_data=json.dumps(
+                [InlineKeyboardButton(text=f"Показать результаты опроса ({len(survey_results_values)})", callback_data=json.dumps(
                     {"type": "survey_chart", "chat_id": message.chat.id}))]
             ])
             builder_2.attach(InlineKeyboardBuilder.from_markup(markup))
@@ -962,6 +975,8 @@ async def show_user_data(query: types.CallbackQuery, state: FSMContext):
         response_text = (
                          f"<b>{survey_results['first_name']} {survey_results['last_name']}</b>\n\n"
                          f"Никнейм: @{survey_results['username']}\n"
+                         f"Телефон: {survey_results['contact']}\n"
+                        
                          f"Tele2: {survey_results['tele2_level']} {survey_results['tele2_quality']}\n"
                          f"МТС: {survey_results['mts_level']} {survey_results['mts_quality']}\n"
                          f"Мегафон: {survey_results['megafon_level']} {survey_results['megafon_quality']}\n"
@@ -972,7 +987,7 @@ async def show_user_data(query: types.CallbackQuery, state: FSMContext):
     else:
         response_text = "Информация по данному пользователю не найдена."
 
-    await query.message.answer_photo(photo=default_profile, caption=response_text, parse_mode='HTML')
+    await query.message.answer_photo(protect_content=True, photo=default_profile, caption=response_text, parse_mode='HTML')
 
 
 
@@ -1288,12 +1303,13 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
         await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
         builder_loc = ReplyKeyboardBuilder()
 
-        builder_loc.button(text='поделиться локацией', request_location=True)
+        builder_loc.row(types.KeyboardButton(text='поделиться локацией', request_location=True),
+        types.KeyboardButton(text='поделиться контактом', request_contact=True))
 
         keyboard_loc = builder_loc.as_markup(
             resize_keyboard=True, one_time_keyboard=True)
 
-        await query.message.answer("При желании можете поделиться своим местоположением 😊 \n (работает только со смартфона)", reply_markup=keyboard_loc)
+        await query.message.answer("При желании можете поделиться своим местоположением и номером телефона с нами 😊 \n (работает только со смартфона)", reply_markup=keyboard_loc)
 
     else:
 
@@ -1336,12 +1352,13 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
 
     builder_loc = ReplyKeyboardBuilder()
 
-    builder_loc.button(text='поделиться локацией', request_location=True)
+    builder_loc.row(types.KeyboardButton(text='поделиться локацией', request_location=True),
+        types.KeyboardButton(text='поделиться контактом', request_contact=True))
 
     keyboard_loc = builder_loc.as_markup(
         resize_keyboard=True, one_time_keyboard=True)
 
-    await query.message.answer("При желании можете поделиться своим местоположением 😊 \n (работает только со смартфона)", reply_markup=keyboard_loc)
+    await query.message.answer("При желании можете поделиться своим местоположением и номером телефона с нами 😊 \n (работает только со смартфона)", reply_markup=keyboard_loc)
 
   #  await bot.answer_callback_query(query.id, f'номер выбранного населенного пункта: {np}')
 
