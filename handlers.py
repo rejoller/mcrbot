@@ -11,7 +11,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import Message
 from datetime import datetime, time, timedelta, timezone
 import csv
-
+from images import default_profile
 from mongo_connect import save_survey_results
 from google_connections import get_authorized_client_and_spreadsheet, search_yandex_2023_values, search_in_pokazatel_504p, search_in_ucn2, search_schools_values, load_otpusk_data, search_values, search_values_levenshtein, search_szoreg_values, get_value, init_redis
 from mongo_connect import search_survey_results
@@ -146,7 +146,16 @@ async def echo_gif(message: Message):
     await message.reply_animation(message.animation.file_id)
 
 
-@main_router.message(~StateFilter(Form.waiting_for_number))
+
+
+
+@main_router.message(F.photo)
+async def get_photo_id(message: Message):
+    await message.reply(text=f"{message.photo[-1].file_id}")
+
+
+
+@main_router.message(~StateFilter(Form.waiting_for_number), F.text)
 async def handle_text(message: Message, state: FSMContext):
 
     reaction_emoji = ReactionTypeEmoji(emoji='🫡')
@@ -935,10 +944,7 @@ async def handle_show_survey_results(query: types.CallbackQuery, state: FSMConte
     keyboard = builder.as_markup()
 
     # Отправляем сообщение с инлайн-клавиатурой
-    await query.message.answer(
-        text="Выберите пользователя для детальной информации:",
-        reply_markup=keyboard
-    )
+    await query.message.answer(text="Выберите пользователя для детальной информации:",reply_markup=keyboard)
 
 
 
@@ -966,7 +972,7 @@ async def show_user_data(query: types.CallbackQuery, state: FSMContext):
     else:
         response_text = "Информация по данному пользователю не найдена."
 
-    await query.message.answer(text=response_text, parse_mode='HTML')
+    await query.message.answer_photo(photo=default_profile, caption=response_text, parse_mode='HTML')
 
 
 

@@ -1,3 +1,4 @@
+.venv/
 config.py
 credentials.json
 start_bot.sh
@@ -22,3 +23,4 @@ telegram_mcr24_bot.service
 animations_providers.py
 udo systemctl status mongod/
 udo journalctl -p err/
+images.py
