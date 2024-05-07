@@ -896,7 +896,7 @@ async def handle_show_survey_results(query: types.CallbackQuery, state: FSMConte
     for item in survey_res:
         # Создаем информативный текст для кнопки
         user_id = item['user_id']
-        user_info = f"ID {item['user_id']}: Tele2 {item['tele2_level']} {item['tele2_quality']}, MTS {item['mts_level']}"
+        #user_info = f"ID {item['user_id']}: Tele2 {item['tele2_level']} {item['tele2_quality']}, MTS {item['mts_level']}"
         builder.button(text=f"🏢 {item['user_id']}", callback_data=f"detailed_survey_data:{item['user_id']}")
         
         survey_results_dict[user_id] = item

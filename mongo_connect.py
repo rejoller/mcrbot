@@ -47,6 +47,7 @@ async def search_survey_results(np=None):
                     'tele2_level': user_data.get('tele2_level', ''),
                     'tele2_quality': user_data.get('tele2_quality', ''),
                     'mts_level': user_data.get('mts_level', ''),
+                    'mts_quality': user_data.get('mts_quality', ''),
                     'megafon_level': user_data.get('megafon_level', ''),
                     'megafon_quality': user_data.get('megafon_quality', ''),
                     'beeline_level': user_data.get('beeline_level', ''),

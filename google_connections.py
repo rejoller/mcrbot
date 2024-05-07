@@ -5,7 +5,7 @@ import re
 from additional import normalize_text_v2, split_message
 from fuzzywuzzy import fuzz
 import traceback
-from aioredis import Redis
+from redis.asyncio import Redis
 import json
 redis = None
 spreadsheet = None
