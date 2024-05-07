@@ -44,6 +44,10 @@ async def search_survey_results(np=None):
                 user_info = {
                     '_id': str(document['_id']),
                     'user_id': user_id,
+                    'first_name': user_data.get('first_name', ''),
+                    'last_name': user_data.get('last_name', ''),
+                    'username': user_data.get('username', ''),
+                    'time': user_data.get('time', ''),
                     'tele2_level': user_data.get('tele2_level', ''),
                     'tele2_quality': user_data.get('tele2_quality', ''),
                     'mts_level': user_data.get('mts_level', ''),

@@ -1,5 +1,6 @@
 
 
+from zoneinfo import ZoneInfo
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReactionTypeEmoji, InputFile, FSInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram import types, Router, F
@@ -8,7 +9,7 @@ from aiogram.filters import Command, CommandStart, StateFilter
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import Message
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta, timezone
 import csv
 
 from mongo_connect import save_survey_results
@@ -202,15 +203,35 @@ async def handle_text(message: Message, state: FSMContext):
             yandex_2023_response = ''
             pokazatel_504p_lines = []
 
-            # Если условие не выполнено, значит индекса [5][4] нет, и нужно обойтись без search_in_results
-            ucn2_values, yandex_2023_values, pokazatel_504p_values = await asyncio.gather(
-                search_in_ucn2(found_values[0][4], redis),
-                search_yandex_2023_values(found_values[0][4], redis),
-                search_in_pokazatel_504p(found_values[0][4], redis)
-            )
 
-            survey_results_values = await search_survey_results(np=found_values[0][4])
-            print(f'данные из монго: {survey_results_values}')
+
+            async with asyncio.TaskGroup() as tg:
+                yandex_2023_task = tg.create_task(search_yandex_2023_values(found_values[0][4], redis))
+                pokazatel_504p_task = tg.create_task(search_in_pokazatel_504p(found_values[0][4], redis))
+                ucn2_task = tg.create_task(search_in_ucn2(found_values[0][4], redis))
+                survey_results_task = tg.create_task(search_survey_results(np=found_values[0][4]))
+                szoreg_task = tg.create_task(search_szoreg_values(found_values[0][4], redis))
+                schools_task = tg.create_task(search_schools_values(found_values[0][4], redis))
+
+
+
+
+
+                yandex_2023_values = await yandex_2023_task
+                pokazatel_504p_values = await pokazatel_504p_task
+                ucn2_values = await ucn2_task
+                survey_results_values = await survey_results_task
+                szoreg_values = await szoreg_task
+                schools_values = await schools_task
+
+
+
+
+
+
+
+            
+            
             if found_values_a:
                 for row in found_values_a:
                     # Создаем словарь с операторами и их значениями, используя метод get для безопасного обращения к элементам списка
@@ -360,7 +381,7 @@ async def handle_text(message: Message, state: FSMContext):
             if itog_ucn_2023:
                 response += f'\n\nкомментарий Минцифры России об УЦН 2024: {itog_ucn_2023}'
             response += f'\n{operators_response}\n'
-            response += f'{yandex_2023_response}{ucn2_response}{votes_response}\nЕсли хочешь узнать о голосовании УЦН 2.0 2024 жми /votes\n\nБот для проведения опросов жителей - <a href="http://t.me/providers_rating_bot">@providers_rating_bot</a>'
+            response += f'{yandex_2023_response}{ucn2_response}{votes_response}\n'
 
             info_text_storage[message.chat.id] = response
 
@@ -376,11 +397,7 @@ async def handle_text(message: Message, state: FSMContext):
 
             await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup())
 
-            szoreg_values, schools_values = await asyncio.gather(
-
-                search_szoreg_values(found_values[0][4], redis),
-                search_schools_values(found_values[0][4], redis)
-            )
+            
 
             # if message.from_user.id in allowed_users:
             # button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", callback_data=json.dumps({"type": "digital_ministry_info", "chat_id": message.chat.id}))
@@ -457,8 +474,8 @@ async def handle_text(message: Message, state: FSMContext):
                 ])
                 builder.attach(InlineKeyboardBuilder.from_markup(markup))
 
-            if schools_values or szoreg_values:
-                await message.answer("доп инфо", reply_markup=builder.as_markup())
+            if schools_values or szoreg_values or survey_results_values:
+                await message.answer("Дополнительная информация", reply_markup=builder.as_markup())
 
                 # await bot.send_message(message.chat.id, "⬇️Дополнительная информация⬇️", reply_markup=inline_keyboard)
             else:
@@ -541,12 +558,29 @@ async def handle_select_number(message: Message, state: FSMContext):
         latitude = selected_np[7]
         longitude = selected_np[8]
 
-        yandex_2023_values, pokazatel_504p_values, ucn2_values = await asyncio.gather(
-            search_yandex_2023_values(selected_np[4], redis),
-            search_in_pokazatel_504p(selected_np[4], redis),
-            search_in_ucn2(selected_np[4], redis)
-        )
-        survey_results_values = await search_survey_results(np=selected_np[4])
+        
+
+        async with asyncio.TaskGroup() as tg:
+            yandex_2023_task = tg.create_task(search_yandex_2023_values(selected_np[4], redis))
+            pokazatel_504p_task = tg.create_task(search_in_pokazatel_504p(selected_np[4], redis))
+            ucn2_task = tg.create_task(search_in_ucn2(selected_np[4], redis))
+            survey_results_task = tg.create_task(search_survey_results(np=selected_np[4]))
+            szoreg_task = tg.create_task(search_szoreg_values(selected_np[4], redis))
+            schools_task = tg.create_task(search_schools_values(selected_np[4], redis))
+
+
+            
+            yandex_2023_values = await yandex_2023_task
+            pokazatel_504p_values = await pokazatel_504p_task
+            ucn2_values = await ucn2_task
+            survey_results_values = await survey_results_task
+            szoreg_values = await szoreg_task
+            schools_values = await schools_task
+
+
+
+
+        
 
         operators = {
             "    |Tele2": selected_np[39] if len(selected_np) > 39 else None,
@@ -719,12 +753,8 @@ async def handle_select_number(message: Message, state: FSMContext):
 
         await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup())
 
-        szoreg_values, schools_values = await asyncio.gather(
-            search_szoreg_values(selected_np[4], redis),
-            search_schools_values(selected_np[4], redis)
-        )
-        print(f'szoreg_values: {szoreg_values}')
-        print(f'schools_values: {schools_values}')
+        
+       
         builder_2 = InlineKeyboardBuilder()
 
         if survey_results_values:
@@ -785,13 +815,10 @@ async def handle_select_number(message: Message, state: FSMContext):
             ])
             builder_2.attach(InlineKeyboardBuilder.from_markup(markup))
 
-        print(
-            f"Creating szo button with data: {json.dumps({'type': 'szoreg_info', 'chat_id': message.chat.id})}")
-        print(
-            f"Creating school button with data: {json.dumps({'type': 'school_info', 'chat_id': message.chat.id})}")
 
-        if schools_values or szoreg_values:
-            await message.answer("доп инфо", reply_markup=builder_2.as_markup())
+
+        if schools_values or szoreg_values or survey_results_values:
+            await message.answer("Дополнительная информация", reply_markup=builder_2.as_markup())
 
         else:
             await bot.send_message(message.chat.id, "Нет дополнительной информации для отображения.")
@@ -843,7 +870,7 @@ async def handle_otpusk_command(message: types.Message, days_ahead=30):
 @main_router.callback_query(F.data.contains("school"))
 async def handle_schools_info(query):
     data = json.loads(query.data)
-    print(f"Received callback school data: {data}")
+
     from main import bot
     chat_id = json.loads(query.data)["chat_id"]
     if chat_id in schools_info_storage:
@@ -864,7 +891,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
     from main import bot
 
     data = await state.get_data()
-    print(f'data in multipl: {data}')
+
 
     np = data['np']
 
@@ -887,7 +914,7 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
 
 @main_router.callback_query(F.data.contains("survey_res"))
 async def handle_show_survey_results(query: types.CallbackQuery, state: FSMContext):
-    print('в обработчике отправки результатов')
+
     data = await state.get_data()
     np = data['np']
     survey_res = await search_survey_results(np)
@@ -897,8 +924,8 @@ async def handle_show_survey_results(query: types.CallbackQuery, state: FSMConte
         # Создаем информативный текст для кнопки
         user_id = item['user_id']
         #user_info = f"ID {item['user_id']}: Tele2 {item['tele2_level']} {item['tele2_quality']}, MTS {item['mts_level']}"
-        builder.button(text=f"🏢 {item['user_id']}", callback_data=f"detailed_survey_data:{item['user_id']}")
-        
+        builder.button(text=f"🏢 {item['first_name']}", callback_data=f"detailed_survey_data:{item['user_id']}")
+        builder.adjust(2)
         survey_results_dict[user_id] = item
     
     await state.update_data(survey_results_dict = survey_results_dict)
@@ -919,20 +946,27 @@ async def handle_show_survey_results(query: types.CallbackQuery, state: FSMConte
 async def show_user_data(query: types.CallbackQuery, state: FSMContext):
     user_id = query.data.split(":")[1]
     data = await state.get_data()
-    print(f'data: {data}')
+
     survey_results_dict = data.get('survey_results_dict', {})
     survey_results = survey_results_dict.get(user_id)
 
+
+
     if survey_results:
-        response_text = (f"Детальная информация для ID {user_id}:\n"
-                         f"Tele2 Level: {survey_results['tele2_level']} {survey_results['tele2_quality']}\n"
-                         f"MTS Level: {survey_results['mts_level']} {survey_results['mts_quality']}\n"
-                         f"Megafon Level: {survey_results['megafon_level']} {survey_results['megafon_quality']}\n"
-                         f"Beeline Level: {survey_results['beeline_level']} {survey_results['beeline_quality']}")
+        response_text = (
+                         f"<b>{survey_results['first_name']} {survey_results['last_name']}</b>\n\n"
+                         f"Никнейм: @{survey_results['username']}\n"
+                         f"Tele2: {survey_results['tele2_level']} {survey_results['tele2_quality']}\n"
+                         f"МТС: {survey_results['mts_level']} {survey_results['mts_quality']}\n"
+                         f"Мегафон: {survey_results['megafon_level']} {survey_results['megafon_quality']}\n"
+                         f"Билайн: {survey_results['beeline_level']} {survey_results['beeline_quality']}\n\n"
+                         f"{survey_results['time']}"
+                         
+                         )
     else:
         response_text = "Информация по данному пользователю не найдена."
 
-    await query.message.answer(text=response_text)
+    await query.message.answer(text=response_text, parse_mode='HTML')
 
 
 
@@ -946,12 +980,19 @@ async def handle_survey_chart(query: types.CallbackQuery, state: FSMContext):
 
     selected_option = query.data.split("_")[1]
     user_id = query.from_user.id
-
+    first_name = query.from_user.first_name
+    last_name = query.from_user.last_name
+    username = query.from_user.username
+    survey_time = datetime.now().astimezone(ZoneInfo("Asia/Krasnoyarsk")).strftime("%Y-%m-%d %H:%M:%S")
     survey_data = {
+        "first_name": first_name,
+        "last_name": last_name,
+        "username": username,
+        "time": survey_time,
         "tele2_level": data.get("tele2_level"),
 
     }
-
+ 
     np = data['np']
     await save_survey_results(np, user_id, survey_data)
     if selected_option == "none":
