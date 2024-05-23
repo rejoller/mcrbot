@@ -119,7 +119,7 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
 @main_router.message(Command('otpusk'))
 async def handle_otpusk_command(message: types.Message, days_ahead=14):
 
-    await bot.send_message(message.chat.id, '🏝Загружаю️')
+    
     await log_user_data_from_message(message)
     otpusk_data = await load_otpusk_data()
 
@@ -129,21 +129,21 @@ async def handle_otpusk_command(message: types.Message, days_ahead=14):
     response = ""
 
     if employees_on_vacation:
-        response += f'```\nСегодня в отпуске```\n\n'
+        response += f'<i>Сегодня в отпуске</i>🏝\n\n'
         for row in employees_on_vacation:
-            response += f"{row[0]}, {row[1]}\n"
-            response += f"  - Дата начала отпуска: {row[3]}\n"
-            response += f"  - Дата окончания отпуска: {row[4]}\n\n"
+            response += f"<b>{row[0]}</b> \n({row[1]})\n"
+            response += f"начало отпуска: {row[3]}\n"
+            response += f"окончание отпуска: {row[4]}\n\n"
 
     if employees_starting_vacation_soon:
-        response += f"```\nСотрудники, уходящие в отпуск в ближайшие *{days_ahead}* дней```\n\n"
+        response += f"\n<i>Сотрудники, уходящие в отпуск в ближайшие <b>{days_ahead}</b> дней</i>\n\n"
         for emp_row in employees_starting_vacation_soon:
-            response += f"{emp_row[0]}, {emp_row[1]}\n"
-            response += f"  - Дата начала отпуска: {emp_row[3]}\n"
-            response += f"  - Дата окончания отпуска: {emp_row[4]}\n\n"
+            response += f"<b>{emp_row[0]}</b> \n({emp_row[1]})\n"
+            response += f"начало отпуска: {emp_row[3]}\n"
+            response += f"окончание отпуска: {emp_row[4]}\n\n"
 
     if not response:
-        response = "Сегодня никто не в отпуске, и никто не уходит в отпуск в ближайшие 14 дней."
+        response = f"Сегодня никто не в отпуске, и никто не уходит в отпуск в ближайшие {days_ahead} дней."
 
     messages = split_message(response)
 
@@ -224,7 +224,7 @@ async def get_photo_id(message: Message):
 @main_router.message(~StateFilter(Form.waiting_for_number), F.text)
 async def handle_text(message: Message, state: FSMContext):
 
-    reaction_emoji = ReactionTypeEmoji(emoji='🫡')
+    reaction_emoji = ReactionTypeEmoji(emoji='🤓')
     await message.react(reaction=[reaction_emoji], is_big=True)
     redis = await init_redis()
 
