@@ -78,3 +78,17 @@ async def save_user_contact(user_id, contact_data):
         {f"results.{user_id}": {"$exists": True}},
         {"$set": {f"results.{user_id}.contact": contact_number}}
     )
+
+
+async def save_staff_dict(data_dict):
+    client = AsyncIOMotorClient('mongodb://localhost:27017')
+    db = client.staff_directory
+    dict_collection = db.contacts
+    for _, row in data_dict.iterrows():
+        document_id = row['ID']
+        document_data = row.to_dict()
+        await dict_collection.update_one(
+            {'_id': document_id},
+            {'$set': document_data},
+            upsert=True
+        )

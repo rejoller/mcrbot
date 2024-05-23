@@ -1,3 +1,37 @@
+
+import json
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReactionTypeEmoji, InputFile, FSInputFile
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram import types, Router, F
+from aiogram.fsm.context import FSMContext
+from aiogram.filters import Command, CommandStart, StateFilter
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
+from aiogram.types import Message
+import re
+
+
+class Staff(StatesGroup):
+    contacts = State()
+
+
+
+
+
+
+
+staff_router = Router()
+
+
+
+
+def escape_markdown(text):
+    markdown_escape_characters = ['*', '_', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    return re.sub('([{}])'.format(''.join(markdown_escape_characters)), r'\\\1', text)
+
+
+'''
+
 def set_main_menu_button_active(chat_id, active):
     global is_main_menu_button_active
     is_main_menu_button_active[chat_id] = active
@@ -5,12 +39,13 @@ def set_main_menu_button_active(chat_id, active):
 
 def create_go_main_menu_inline_button():
     inline_keyboard = types.InlineKeyboardMarkup()
-    main_menu_button = types.InlineKeyboardButton("Выйти из справочника", callback_data="go_main_menu")
+    main_menu_button = types.InlineKeyboardButton(
+        "Выйти из справочника", callback_data="go_main_menu")
     inline_keyboard.add(main_menu_button)
     return inline_keyboard
 
 
-@dp.callback_query_handler(lambda call: call.data == "go_main_menu")
+@staff_router.callback_query_handler(lambda call: call.data == "go_main_menu")
 async def go_main_menu_callback_handler(call):
     set_main_menu_button_active(call.message.chat.id, False)
     await bot.send_message(call.message.chat.id,
@@ -21,20 +56,17 @@ async def go_main_menu_callback_handler(call):
     # await send_main_menu(call.message)
 
 
-@dp.callback_query_handler(lambda call: call.data == "go_main_menu")
+@staff_router.callback_query_handler(lambda call: call.data == "go_main_menu")
 async def process_go_main_menu_callback(call):
     await go_main_menu_callback_handler(call)
-
 
 
 def remove_employee_data(chat_id):
     if chat_id in stored_employees_data:
         del stored_employees_data[chat_id]
 
-from aiogram.dispatcher.filters import Text
 
-
-@dp.message_handler(Text(equals='Выйти из справочника'))
+@staff_router.message_handler(Text(equals='Выйти из справочника'))
 async def handle_go_main_menu(message: types.Message):
     set_main_menu_button_active(message.chat.id, False)
     await bot.send_message(message.chat.id,
@@ -45,27 +77,22 @@ async def handle_go_main_menu(message: types.Message):
     # await send_main_menu(message)
 
 
-
-
-
 async def handle_employee_info_message(chat_id, response):
     set_main_menu_button_active(chat_id, True)
     main_menu_inline_button = create_go_main_menu_inline_button()
     msg = await bot.send_message(chat_id, response, parse_mode='HTML', reply_markup=main_menu_inline_button)
-    bot.register_next_step_handler(msg, process_employee_name_input)  # добавим вызов функции process_employee_name_input здесь
+    # добавим вызов функции process_employee_name_input здесь
+    bot.register_next_step_handler(msg, process_employee_name_input)
 
 
-@dp.message_handler(Text(equals='Выйти из справочника'))
-async def process_go_main_menu_callback(message: types.Message):
+@staff_router.message_handler(Text(equals='Выйти из справочника'))
+async def process_go_main_menu_callback(message: Message, state: FSMContext):
     if message.text == 'Выйти из справочника':
         await go_main_menu_callback_handler(message)
     else:
         await bot.send_message(message.chat.id, "Введите фамилию сотрудника (и, при необходимости, имя и отчество)")
-        dp.register_message_handler(process_employee_name_input, content_types=types.ContentTypes.TEXT, state="*")
-
-
-import json
-
+        dp.register_message_handler(
+            process_employee_name_input, content_types=types.ContentTypes.TEXT, state="*")
 
 
 stored_employees_data = {}
@@ -91,17 +118,23 @@ def search_employee(name_parts):
                 found_employees.append(row)
 
     return found_employees
+'''
+
+@staff_router.message(Command("employees"))
+async def handle_employee_command(message: Message, state: FSMContext):
+    
+    await message.answer('he he')
+    
+    await state.set_state(Staff.contacts)
 
 
-@dp.message_handler(commands=['employee'])
-async def handle_employee_command(message: types.Message):
-    global stored_employees_data
+'''
     user_first_name = message.from_user.first_name
     name_parts = re.split(r'\s+', message.text[len('/employee'):].strip())
 
     if len(name_parts) < 1 or len(name_parts[0]) < 2:
-        msg = await message.reply(f'{user_first_name}, введите фамилию сотрудника (и, при необходимости, имя и отчество).')
-        await msg.register_next_step_handler(process_employee_name_input)
+        await message.reply_to_message(f'{user_first_name}, введите фамилию сотрудника (и, при необходимости, имя и отчество).')
+
         return
 
     found_employees = search_employee(name_parts)
@@ -124,15 +157,24 @@ async def process_employee_name_input(message: types.Message):
 
 
 def format_employee_info(employee):
-    fio = escape_markdown(employee[2]) if len(employee) > 2 and employee[2] else "-"
-    position = escape_markdown(employee[1]) if len(employee) > 1 and employee[1] else "-"
-    department = escape_markdown(employee[0]) if len(employee) > 0 and employee[0] else "-"
-    place = escape_markdown(employee[5]) if len(employee) > 5 and employee[5] else "-"
-    workphone = escape_markdown(employee[3]) if len(employee) > 3 and employee[3] else "-"
-    private_phone = escape_markdown(employee[4]) if len(employee) > 4 and employee[4] else "-"
-    bd = escape_markdown(employee[7]) if len(employee) > 7 and employee[7] else "-"
-    email = escape_markdown(employee[8]) if len(employee) > 8 and employee[8] else "-"
-    tg = escape_markdown(employee[9]) if len(employee) > 9 and employee[9] else "-"
+    fio = escape_markdown(employee[2]) if len(
+        employee) > 2 and employee[2] else "-"
+    position = escape_markdown(employee[1]) if len(
+        employee) > 1 and employee[1] else "-"
+    department = escape_markdown(employee[0]) if len(
+        employee) > 0 and employee[0] else "-"
+    place = escape_markdown(employee[5]) if len(
+        employee) > 5 and employee[5] else "-"
+    workphone = escape_markdown(employee[3]) if len(
+        employee) > 3 and employee[3] else "-"
+    private_phone = escape_markdown(employee[4]) if len(
+        employee) > 4 and employee[4] else "-"
+    bd = escape_markdown(employee[7]) if len(
+        employee) > 7 and employee[7] else "-"
+    email = escape_markdown(employee[8]) if len(
+        employee) > 8 and employee[8] else "-"
+    tg = escape_markdown(employee[9]) if len(
+        employee) > 9 and employee[9] else "-"
 
     response = (
         f"<b>ФИО:</b> {fio}\n"
@@ -164,15 +206,17 @@ async def process_searched_employee_results(message: types.Message, found_employ
         for idx, employee in enumerate(found_employees):
             button_text = employee[2]  # ФИО из таблицы
 
-            callback_data = json.dumps({"type": "employee_info", "index": idx, "chat_id": message.chat.id})
-            button = types.InlineKeyboardButton(button_text, callback_data=callback_data)
+            callback_data = json.dumps(
+                {"type": "employee_info", "index": idx, "chat_id": message.chat.id})
+            button = types.InlineKeyboardButton(
+                button_text, callback_data=callback_data)
             inline_keyboard.add(button)
 
         await bot.send_message(message.chat.id, "Выберите сотрудника из списка:", reply_markup=inline_keyboard)
         create_go_main_menu_inline_button()
 
 
-@dp.callback_query_handler(lambda call: json.loads(call.data)["type"] == "employee_info")
+@staff_router.callback_query_handler(lambda call: json.loads(call.data)["type"] == "employee_info")
 async def handle_employee_info_call(call: types.CallbackQuery):
     global stored_employees_data
     data = json.loads(call.data)
@@ -188,3 +232,4 @@ async def handle_employee_info_call(call: types.CallbackQuery):
     else:
         await bot.send_message(chat_id, "Не удалось получить информацию о сотруднике.")
         send_go_main_menu_button(chat_id)
+'''

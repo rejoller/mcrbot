@@ -40,55 +40,9 @@ creds = service_account.Credentials.from_service_account_file(
     SERVICE_ACCOUNT_FILE, scopes=SCOPES)
 
 
-def escape_markdown(text):
-    markdown_escape_characters = ['*', '_', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
-    return re.sub('([{}])'.format(''.join(markdown_escape_characters)), r'\\\1', text)
-
-'''
 
 
 
-@main_router.message(Command('otpusk'))
-async def handle_otpusk_command(message: types.Message):
-    await message.answer('Загружаю данные')
-    otpusk_data = await load_otpusk_data()
-    await filter_and_send_data(message, otpusk_data)
-
-
-@main_router.message(Command('employees_vacation'))
-async def handle_employees_vacation_command(message: types.Message):
-    await message.answer('Загружаю данные')
-    otpusk_data = await load_otpusk_data()
-    employees_on_vacation, employees_starting_vacation_soon = get_employees_on_vacation(otpusk_data)
-
-    if employees_on_vacation:
-        await message.answer('Сотрудники, находящиеся в отпуске:')
-        await message.answer('\n'.join(['\t'.join(row) for row in employees_on_vacation]), parse_mode=types.ParseMode.MARKDOWN)
-    else:
-        await message.answer('Сотрудников в отпуске нет.')
-
-    if employees_starting_vacation_soon:
-        await message.answer('Сотрудники, начинающие отпуск в ближайшие дни:')
-        await message.answer('\n'.join(['\t'.join(row) for row in employees_starting_vacation_soon]), parse_mode=types.ParseMode.MARKDOWN)
-    else:
-        await message.answer('Сотрудников, начинающих отпуск в ближайшие дни, нет.')
-
-
-
-async def handler_otpusk_message(message, employees_on_vacation):
-    if len(employees_on_vacation) > 0:
-        response = "Сотрудники, которые сегодня в отпуске:\n\n"
-        for employee in employees_on_vacation:
-            response += f"{employee[0]} ({employee[1]})\n"
-        time.sleep(2)
-        await message.reply(response)
-    else:
-        time.sleep(2)
-        await message.reply("Сегодня никто не в отпуске.")
-'''
-
-
-import logging
 
 def setup_logging():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -121,7 +75,9 @@ async def main():
     
     dp = Dispatcher(storage = storage)
     from handlers import main_router
+    from staff_directory import staff_router
     dp.include_router(main_router)
+    dp.include_router(staff_router)
     
     await on_startup()
     print('Бот запущен и готов к приему сообщений')

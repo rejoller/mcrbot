@@ -1,9 +1,9 @@
 import re
-from openpyxl import Workbook
+#from openpyxl import Workbook
 from io import BytesIO
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
-from openpyxl.writer.excel import save_virtual_workbook
-from openpyxl.utils import get_column_letter
+#from openpyxl.writer.excel import save_virtual_workbook
+#from openpyxl.utils import get_column_letter
 
 def normalize_text_v2(text):
     text = text.lower().replace('ё', 'е').replace('р-н', 'район').replace('-', ' ')
