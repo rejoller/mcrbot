@@ -1470,3 +1470,4 @@ async def handle_szoreg_info(query: types.CallbackQuery):
         await query.bot.answer_callback_query(query.id, "Произошла ошибка при обработке запроса.")
         print(
             f"Exception: {e} Callback query didn't answer for chat ID {chat_id}")
+
