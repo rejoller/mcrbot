@@ -5,6 +5,9 @@ from zoneinfo import ZoneInfo
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReactionTypeEmoji, InputFile, FSInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram import types, Router, F
+
+from aiogram.types.web_app_data import WebAppData
+from aiogram.types.web_app_info import WebAppInfo
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command, CommandStart, StateFilter
 from aiogram.fsm.state import State, StatesGroup
@@ -115,6 +118,30 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
                 pass  # игнорировать строки с неправильным форматом даты
 
     return employees_on_vacation, employees_starting_vacation_soon
+
+
+
+
+
+@main_router.message(Command('bi'))
+async def handle_bi_command(message: types.Message):
+    
+
+    builder = InlineKeyboardBuilder()
+    
+
+        
+        
+    builder.button(text="test webapp", web_app=WebAppInfo(url="https://rejoller.pythonanywhere.com/"))
+            
+
+       
+    keyboard = builder.as_markup()
+
+
+    
+    await message.answer(text='BI', reply_markup=keyboard)
+
 
 @main_router.message(Command('otpusk'))
 async def handle_otpusk_command(message: types.Message, days_ahead=14):
