@@ -7,6 +7,10 @@ from fuzzywuzzy import fuzz
 import traceback
 from redis.asyncio import Redis
 import json
+from glob import glob
+import os
+
+
 redis = None
 spreadsheet = None
 async def init_redis():
@@ -352,12 +356,62 @@ async def search_survey_results(query, redis):
 
 
 async def load_otpusk_data():
-    agcm = gspread_asyncio.AsyncioGspreadClientManager(lambda: creds)
-    gc = await agcm.authorize()
-    spreadsheet = await gc.open_by_key(SPREADSHEET_ID)
-    sheet = await spreadsheet.worksheet('otpusk')
-    rows = await sheet.get('A1:F100')
-    return rows
+
+    file_path = glob('*рафик*.xlsx')
+
+    file_path.sort(key=os.path.getmtime, reverse=True)
+   
+
+    latest_file_path = file_path[0]
+
+    df = pd.read_excel(latest_file_path)
+
+    
+    df = df[~df['Сотрудник'].str.contains('увол.', na=False)]
+
+    
+    date_pattern = re.compile(
+        r'с (\d{2}\.\d{2}\.\d{4}) по (\d{2}\.\d{2}\.\d{4})')
+
+    
+    def extract_periods(row):
+        description = row['Описание перенесенного отпуска']
+        periods = []
+
+        # Матчим все периоды
+        if pd.notna(description):
+            matches = date_pattern.findall(description)
+            if matches:
+                for start, end in matches:
+                    periods.append({
+                        'ФИО': row['Сотрудник'],
+                        'Дата начала фактического отпуска': start,
+                        'Дата конца фактического отпуска': end
+                    })
+
+       
+        if not periods:
+            periods.append({
+                'ФИО': row['Сотрудник'],
+                'Дата начала фактического отпуска': row['Начало'],
+                'Дата конца фактического отпуска': row['Окончание']
+            })
+
+        return periods
+
+    
+    new_periods = []
+
+    
+    for _, row in df.iterrows():
+        new_periods.extend(extract_periods(row))
+
+    
+    periods_df = pd.DataFrame(new_periods)
+
+    
+
+    return periods_df
     
     
     
