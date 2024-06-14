@@ -5,7 +5,6 @@ from zoneinfo import ZoneInfo
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReactionTypeEmoji, InputFile, FSInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram import types, Router, F
-from glob import glob
 from aiogram.types.web_app_data import WebAppData
 from aiogram.types.web_app_info import WebAppInfo
 from aiogram.fsm.context import FSMContext
@@ -217,57 +216,27 @@ async def echo_gif(message: Message):
     print(file_id)
     await message.answer(message.animation.file_id)
 
-async def load_otpusk_data():
+@main_router.message(F.document)
+async def contacts_handler(message: types.Message):
+    document = message.document
 
-    file_path = glob('*рафик*.xlsx')
-
-    file_path.sort(key=os.path.getmtime, reverse=True)
-   
-
-    latest_file_path = file_path[0]
-
-    df = pd.read_excel(latest_file_path)
-
-    
-    df = df[~df['Сотрудник'].str.contains('увол.', na=False)]
-
-   
-    date_pattern = re.compile(
-        r'с (\d{2}\.\d{2}\.\d{4}) по (\d{2}\.\d{2}\.\d{4})')
-
-    
-    def extract_periods(row):
-        description = row['Описание перенесенного отпуска']
-        periods = []
-
-       
-        if pd.notna(description):
-            matches = date_pattern.findall(description)
-            if matches:
-                for start, end in matches:
-                    periods.append({
-                        'ФИО': row['Сотрудник'],
-                        'Дата начала фактического отпуска': start,
-                        'Дата конца фактического отпуска': end
-                    })
-
+    # Преобразуем имя файла к нижнему регистру для сравнения
+    file_name = document.file_name.lower()
+    if "рафик" in file_name:
+        destination = os.path.join(os.getcwd(), document.file_name)
         
-        if not periods:
-            periods.append({
-                'ФИО': row['Сотрудник'],
-                'Дата начала фактического отпуска': row['Начало'],
-                'Дата конца фактического отпуска': row['Окончание']
-            })
+        # Проверка существует ли файл с таким именем
+        if os.path.exists(destination):
+            os.remove(destination)
+            await message.answer('Файл перезаписан')
 
-        return periods
-
-    new_periods = []
-
-    for _, row in df.iterrows():
-        new_periods.extend(extract_periods(row))
-    periods_df = pd.DataFrame(new_periods)
-    return periods_df
-
+        file_info = await bot.get_file(document.file_id)
+        await bot.download_file(file_info.file_path, destination)
+        await message.answer(f'График отпусков сохранен')
+        
+    else:
+        await message.answer(f'ошибка, попробуйте еще раз. Имя файла должно начинаться на "График" (без учета регистра)')
+        
 
 
 
