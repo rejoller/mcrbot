@@ -1,11 +1,11 @@
 
-
+from icecream import ic
 from io import BytesIO
 from zoneinfo import ZoneInfo
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, ReactionTypeEmoji, InputFile, FSInputFile
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram import types, Router, F
-
+from glob import glob
 from aiogram.types.web_app_data import WebAppData
 from aiogram.types.web_app_info import WebAppInfo
 from aiogram.fsm.context import FSMContext
@@ -100,22 +100,18 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
     employees_on_vacation = []
     employees_starting_vacation_soon = []
 
-    for row_idx, row in enumerate(otpusk_data):
-        if row_idx == 0:  # пропустить заголовки таблицы
-            continue
-        if len(row) >= 5:
-            try:
-                start_date = datetime.strptime(row[3], "%d.%m.%Y").date()
-                end_date = datetime.strptime(row[4], "%d.%m.%Y").date()
+    for index, row in otpusk_data.iterrows():
+        start_date = datetime.strptime(
+            row['Дата начала фактического отпуска'], "%d.%m.%Y").date()
+       
+        end_date = datetime.strptime(
+            row['Дата конца фактического отпуска'], "%d.%m.%Y").date()
 
-                if start_date <= today <= end_date:
-                    employees_on_vacation.append(row)
+        if start_date <= today <= end_date:
+            employees_on_vacation.append(row)
 
-                if today < start_date <= future_vacation_start:
-                    employees_starting_vacation_soon.append(row)
-
-            except ValueError:
-                pass  # игнорировать строки с неправильным форматом даты
+        if today < start_date <= future_vacation_start:
+            employees_starting_vacation_soon.append(row)
 
     return employees_on_vacation, employees_starting_vacation_soon
 
@@ -146,9 +142,9 @@ async def handle_bi_command(message: types.Message):
 @main_router.message(Command('otpusk'))
 async def handle_otpusk_command(message: types.Message, days_ahead=14):
 
-    
     await log_user_data_from_message(message)
     otpusk_data = await load_otpusk_data()
+    ic(otpusk_data)
 
     employees_on_vacation, employees_starting_vacation_soon = get_employees_on_vacation(
         otpusk_data, days_ahead)
@@ -158,16 +154,16 @@ async def handle_otpusk_command(message: types.Message, days_ahead=14):
     if employees_on_vacation:
         response += f'<i>Сегодня в отпуске</i>🏝\n\n'
         for row in employees_on_vacation:
-            response += f"<b>{row[0]}</b> \n({row[1]})\n"
-            response += f"начало отпуска: {row[3]}\n"
-            response += f"окончание отпуска: {row[4]}\n\n"
+            response += f"<b>{row.iloc[0]}</b>\n"
+            response += f"начало отпуска: {row.iloc[1]}\n"
+            response += f"окончание отпуска: {row.iloc[2]}\n\n"
 
     if employees_starting_vacation_soon:
         response += f"\n<i>Сотрудники, уходящие в отпуск в ближайшие <b>{days_ahead}</b> дней</i>\n\n"
         for emp_row in employees_starting_vacation_soon:
-            response += f"<b>{emp_row[0]}</b> \n({emp_row[1]})\n"
-            response += f"начало отпуска: {emp_row[3]}\n"
-            response += f"окончание отпуска: {emp_row[4]}\n\n"
+            response += f"<b>{emp_row.iloc[0]}</b>\n"
+            response += f"начало отпуска: {emp_row.iloc[1]}\n"
+            response += f"окончание отпуска: {emp_row.iloc[2]}\n\n"
 
     if not response:
         response = f"Сегодня никто не в отпуске, и никто не уходит в отпуск в ближайшие {days_ahead} дней."
@@ -221,19 +217,56 @@ async def echo_gif(message: Message):
     print(file_id)
     await message.answer(message.animation.file_id)
 
-@main_router.message(F.document)
-async def contacts_handler(message: types.Message):
-    document = message.document
-    if document.file_name == "справочник.xlsx":
-        file_info = await bot.get_file(document.file_id)
-        destination = os.path.join(os.getcwd(), document.file_name)
-        await bot.download_file(file_info.file_path, destination)
-        await message.answer(f'Файл загружен и сохранен как {destination}')
+async def load_otpusk_data():
+
+    file_path = glob('*рафик*.xlsx')
+
+    file_path.sort(key=os.path.getmtime, reverse=True)
+   
+
+    latest_file_path = file_path[0]
+
+    df = pd.read_excel(latest_file_path)
+
+    
+    df = df[~df['Сотрудник'].str.contains('увол.', na=False)]
+
+   
+    date_pattern = re.compile(
+        r'с (\d{2}\.\d{2}\.\d{4}) по (\d{2}\.\d{2}\.\d{4})')
+
+    
+    def extract_periods(row):
+        description = row['Описание перенесенного отпуска']
+        periods = []
+
+       
+        if pd.notna(description):
+            matches = date_pattern.findall(description)
+            if matches:
+                for start, end in matches:
+                    periods.append({
+                        'ФИО': row['Сотрудник'],
+                        'Дата начала фактического отпуска': start,
+                        'Дата конца фактического отпуска': end
+                    })
+
         
-        # Чтение данных из файла Excel
-        data_dict = pd.read_excel(destination)  # Здесь мы передаем переменную destination напрямую
-        print(data_dict)
-        await save_staff_dict(data_dict)
+        if not periods:
+            periods.append({
+                'ФИО': row['Сотрудник'],
+                'Дата начала фактического отпуска': row['Начало'],
+                'Дата конца фактического отпуска': row['Окончание']
+            })
+
+        return periods
+
+    new_periods = []
+
+    for _, row in df.iterrows():
+        new_periods.extend(extract_periods(row))
+    periods_df = pd.DataFrame(new_periods)
+    return periods_df
 
 
 
