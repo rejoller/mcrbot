@@ -10,14 +10,20 @@ import json
 from glob import glob
 import os
 import pandas as pd
+from config import OAUTH_TOKEN
+import yadisk
+from icecream import ic
 
 redis = None
 spreadsheet = None
+
+
 async def init_redis():
     # Using aioredis.from_url to initialize the Redis client
     try:
         # Правильное формирование URL для подключения
-        redis = Redis.from_url('redis://localhost:6379', decode_responses=True, db=0)
+        redis = Redis.from_url('redis://localhost:6379',
+                               decode_responses=True, db=0)
         print('Успешно подключено к Redis')
         return redis
     except Exception as e:
@@ -30,8 +36,10 @@ creds = None
 creds = service_account.Credentials.from_service_account_file(
     SERVICE_ACCOUNT_FILE, scopes=SCOPES)
 
-credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+credentials = service_account.Credentials.from_service_account_file(
+    SERVICE_ACCOUNT_FILE, scopes=SCOPES)
 SPREADSHEET_ID = '1ghoLFQ6Ydbz0QRMgCfAT2_0fktJSNI4HkHIu6qKWWbU'
+
 
 async def get_authorized_client_and_spreadsheet():
     agcm = gspread_asyncio.AsyncioGspreadClientManager(lambda: creds)
@@ -59,11 +67,11 @@ async def load_szoreg_values(spreadsheet, redis):
         rows = result.get('valueRanges', [])[0].get('values', [])
         max_columns = 16  # предположим, что максимальное количество колонок в данных 16
 
-
         pipeline = redis.pipeline()
         for row in rows:
             if len(row) > 0:
-                unique_key = str(row[0]).lower()  # предполагаем, что row[0] - это неуникальный ключ
+                # предполагаем, что row[0] - это неуникальный ключ
+                unique_key = str(row[0]).lower()
                 full_row = row + [None] * (max_columns - len(row))
                 pipeline.rpush(f"szoreg:{unique_key}", json.dumps(full_row))
 
@@ -74,11 +82,12 @@ async def load_szoreg_values(spreadsheet, redis):
         keys = await redis.keys('szoreg:*')
         for key in keys[:10]:  # берем только первые 10 ключей
             list_length = await redis.llen(key)  # Получаем длину списка
-            list_items = await redis.lrange(key, 0, list_length - 1)  # Получаем все элементы списка
-
+            # Получаем все элементы списка
+            list_items = await redis.lrange(key, 0, list_length - 1)
 
     except Exception as e:
         print("An error occurred during loading SZOREG values:", e)
+
 
 async def search_szoreg_values(query, redis):
     try:
@@ -89,8 +98,9 @@ async def search_szoreg_values(query, redis):
         data_json_list = await redis.lrange(f"szoreg:{query_lower}", 0, -1)
         if data_json_list:
             # Преобразуем все JSON строки в объекты Python в одном выражении list comprehension
-            found_values = [json.loads(data_json) for data_json in data_json_list]
-            
+            found_values = [json.loads(data_json)
+                            for data_json in data_json_list]
+
             return found_values
         else:
             print(f'Данные по запросу "{query_lower}" не найдены.')
@@ -98,9 +108,6 @@ async def search_szoreg_values(query, redis):
     except Exception as e:
         print(f"Произошла ошибка при поиске значений SZOREG в Redis:", e)
         return None
-
-
-
 
 
 async def load_yandex_2023_values(spreadsheet, redis):
@@ -117,22 +124,25 @@ async def load_yandex_2023_values(spreadsheet, redis):
         for row in rows:
             if len(row) > 0:
                 unique_key = str(row[0]).lower()
-                full_row = [item if item is not None else None for item in row] + [None] * (max_columns - len(row))
-                pipeline.rpush(f"yandex2023:{unique_key}", json.dumps(full_row))
+                full_row = [item if item is not None else None for item in row] + \
+                    [None] * (max_columns - len(row))
+                pipeline.rpush(
+                    f"yandex2023:{unique_key}", json.dumps(full_row))
         await pipeline.execute()
         print('All Yandex 2023 values loaded successfully.')
     except Exception as e:
         print("An error occurred during loading Yandex 2023 values:", e)
 
 
-
 async def search_yandex_2023_values(query, redis):
     try:
         query_lower = query.lower()
-        print(f'Поиск данных о Yandex 2023 в Redis по ключу: yandex2023:{query_lower}...')
+        print(
+            f'Поиск данных о Yandex 2023 в Redis по ключу: yandex2023:{query_lower}...')
         data_json_list = await redis.lrange(f"yandex2023:{query_lower}", 0, -1)
         if data_json_list:
-            found_values = [json.loads(data_json) for data_json in data_json_list if data_json is not None]
+            found_values = [json.loads(
+                data_json) for data_json in data_json_list if data_json is not None]
             return found_values
         else:
             print(f'Данные по запросу "{query_lower}" не найдены.')
@@ -140,7 +150,6 @@ async def search_yandex_2023_values(query, redis):
     except Exception as e:
         print(f"Произошла ошибка при поиске данных о Yandex 2023 в Redis:", e)
         return None
-
 
 
 async def load_pokazatel_504p_values(spreadsheet, redis):
@@ -158,7 +167,8 @@ async def load_pokazatel_504p_values(spreadsheet, redis):
             if len(row) > 0:
                 unique_key = str(row[0]).lower()
                 full_row = row + [None] * (max_columns - len(row))
-                pipeline.rpush(f"pokazatel_504p:{unique_key}", json.dumps(full_row))
+                pipeline.rpush(
+                    f"pokazatel_504p:{unique_key}", json.dumps(full_row))
 
         await pipeline.execute()
         print('All 504-п values loaded successfully.')
@@ -169,7 +179,8 @@ async def load_pokazatel_504p_values(spreadsheet, redis):
 async def search_in_pokazatel_504p(query, redis):
     try:
         query_lower = query.lower()
-        print(f'Поиск данных 504-п в Redis по ключу: pokazatel_504p:{query_lower}...')
+        print(
+            f'Поиск данных 504-п в Redis по ключу: pokazatel_504p:{query_lower}...')
 
         data_json_list = await redis.lrange(f"pokazatel_504p:{query_lower}", 0, -1)
         if data_json_list:
@@ -198,7 +209,8 @@ async def load_ucn2_values(spreadsheet, redis):
         for row in rows:
             if len(row) > 0:
                 unique_key = str(row[0]).lower()
-                full_row = [item if item is not None else None for item in row] + [None] * (max_columns - len(row))
+                full_row = [item if item is not None else None for item in row] + \
+                    [None] * (max_columns - len(row))
                 pipeline.rpush(f"ucn2:{unique_key}", json.dumps(full_row))
 
         await pipeline.execute()
@@ -206,14 +218,17 @@ async def load_ucn2_values(spreadsheet, redis):
     except Exception as e:
         print("An error occurred during loading UCN 2.0 (2023) values:", e)
 
+
 async def search_in_ucn2(query, redis):
     try:
         query_lower = query.lower()
-        print(f'Поиск данных о UCN 2.0 (2023) в Redis по ключу: ucn2:{query_lower}...')
+        print(
+            f'Поиск данных о UCN 2.0 (2023) в Redis по ключу: ucn2:{query_lower}...')
 
         data_json_list = await redis.lrange(f"ucn2:{query_lower}", 0, -1)
         if data_json_list:
-            found_values = [json.loads(data_json) for data_json in data_json_list if data_json is not None]
+            found_values = [json.loads(
+                data_json) for data_json in data_json_list if data_json is not None]
 
             return found_values
         else:
@@ -238,21 +253,25 @@ async def load_schools_values(spreadsheet, redis):
         for row in rows:
             if len(row) > 0:
                 unique_key = str(row[0]).lower()
-                full_row = [item if item is not None else None for item in row] + [None] * (max_columns - len(row))
+                full_row = [item if item is not None else None for item in row] + \
+                    [None] * (max_columns - len(row))
                 pipeline.rpush(f"schools:{unique_key}", json.dumps(full_row))
         await pipeline.execute()
         print('All school values loaded successfully.')
     except Exception as e:
         print("An error occurred during loading school values:", e)
 
+
 async def search_schools_values(query, redis):
     try:
         query_lower = query.lower()
-        print(f'Поиск данных о школах в Redis по ключу: schools:{query_lower}...')
+        print(
+            f'Поиск данных о школах в Redis по ключу: schools:{query_lower}...')
 
         data_json_list = await redis.lrange(f"schools:{query_lower}", 0, -1)
         if data_json_list:
-            found_values = [json.loads(data_json) for data_json in data_json_list if data_json is not None]
+            found_values = [json.loads(
+                data_json) for data_json in data_json_list if data_json is not None]
 
             return found_values
         else:
@@ -261,8 +280,6 @@ async def search_schools_values(query, redis):
     except Exception as e:
         print(f"Произошла ошибка при поиске данных о школах в Redis:", e)
         return None
-
-
 
 
 async def load_votes_values(spreadsheet, redis):
@@ -280,9 +297,12 @@ async def load_votes_values(spreadsheet, redis):
         pipeline = redis.pipeline()
         for row in rows:
             if len(row) > 0:
-                unique_key = str(row[0]).lower()  # Предположим, что первое поле - это уникальный ключ (например, ID голосования)
-                full_row = [item if item is not None else None for item in row] + [None] * (max_columns - len(row))
-                pipeline.rpush(f"votes:{unique_key}", json.dumps(full_row))  # Добавление в список Redis
+                # Предположим, что первое поле - это уникальный ключ (например, ID голосования)
+                unique_key = str(row[0]).lower()
+                full_row = [item if item is not None else None for item in row] + \
+                    [None] * (max_columns - len(row))
+                pipeline.rpush(f"votes:{unique_key}", json.dumps(
+                    full_row))  # Добавление в список Redis
 
         await pipeline.execute()
         print('All votes values loaded successfully.')
@@ -290,15 +310,16 @@ async def load_votes_values(spreadsheet, redis):
         print(f"An error occurred during loading votes values: {e}")
 
 
-
 async def search_votes_values(query, redis):
     try:
         query_lower = query.lower()
-        print(f'Searching for votes data in Redis with key: votes:{query_lower}...')
+        print(
+            f'Searching for votes data in Redis with key: votes:{query_lower}...')
 
         data_json_list = await redis.lrange(f"votes:{query_lower}", 0, -1)
         if data_json_list:
-            found_values = [json.loads(data_json) for data_json in data_json_list if data_json is not None]
+            found_values = [json.loads(
+                data_json) for data_json in data_json_list if data_json is not None]
 
             return found_values
         else:
@@ -307,7 +328,6 @@ async def search_votes_values(query, redis):
     except Exception as e:
         print(f"An error occurred during search for votes data: {e}")
         return None
-
 
 
 async def load_survey_values(spreadsheet, redis):
@@ -325,9 +345,12 @@ async def load_survey_values(spreadsheet, redis):
         pipeline = redis.pipeline()
         for row in rows:
             if len(row) > 0:
-                unique_key = str(row[0]).lower()  # Предположим, что первое поле - это уникальный ключ (например, ID голосования)
-                full_row = [item if item is not None else None for item in row] + [None] * (max_columns - len(row))
-                pipeline.rpush(f"surv_results:{unique_key}", json.dumps(full_row))  # Добавление в список Redis
+                # Предположим, что первое поле - это уникальный ключ (например, ID голосования)
+                unique_key = str(row[0]).lower()
+                full_row = [item if item is not None else None for item in row] + \
+                    [None] * (max_columns - len(row))
+                pipeline.rpush(f"surv_results:{unique_key}", json.dumps(
+                    full_row))  # Добавление в список Redis
 
         await pipeline.execute()
         print('All votes values loaded successfully.')
@@ -338,11 +361,13 @@ async def load_survey_values(spreadsheet, redis):
 async def search_survey_results(query, redis):
     try:
         query_lower = query.lower()
-        print(f'Searching for surv_results data in Redis with key: surv_results:{query_lower}...')
+        print(
+            f'Searching for surv_results data in Redis with key: surv_results:{query_lower}...')
 
         data_json_list = await redis.lrange(f"surv_results:{query_lower}", 0, -1)
         if data_json_list:
-            found_values = [json.loads(data_json) for data_json in data_json_list if data_json is not None]
+            found_values = [json.loads(
+                data_json) for data_json in data_json_list if data_json is not None]
 
             return found_values
         else:
@@ -353,32 +378,21 @@ async def search_survey_results(query, redis):
         return None
 
 
-
-
 async def load_otpusk_data():
 
-    file_path = glob('*рафик*.xlsx')
-
+    file_path = glob('otpusk/*рафик*.xlsx')
     file_path.sort(key=os.path.getmtime, reverse=True)
-   
-
     latest_file_path = file_path[0]
 
     df = pd.read_excel(latest_file_path)
-
-    
     df = df[~df['Сотрудник'].str.contains('увол.', na=False)]
 
-    
     date_pattern = re.compile(
         r'с (\d{2}\.\d{2}\.\d{4}) по (\d{2}\.\d{2}\.\d{4})')
 
-    
     def extract_periods(row):
         description = row['Описание перенесенного отпуска']
-        periods = []
-
-        # Матчим все периоды
+        periods = []      
         if pd.notna(description):
             matches = date_pattern.findall(description)
             if matches:
@@ -389,7 +403,6 @@ async def load_otpusk_data():
                         'Дата конца фактического отпуска': end
                     })
 
-       
         if not periods:
             periods.append({
                 'ФИО': row['Сотрудник'],
@@ -399,23 +412,45 @@ async def load_otpusk_data():
 
         return periods
 
-    
     new_periods = []
 
-    
     for _, row in df.iterrows():
         new_periods.extend(extract_periods(row))
 
-    
     periods_df = pd.DataFrame(new_periods)
 
+    return periods_df
+
+async def search_subsidies_info():
+    file_path = glob('subsidies/*убсид*.xlsx')
+    file_path.sort(key=os.path.getmtime, reverse=True)
+    latest_file_path = file_path[0]
+
+    subsidies_df = pd.read_excel(latest_file_path, sheet_name='2024')
+    #subsidies_df=subsidies_df.style.set_properties(**{'text-align': 'center', 'text_wrap': True}) 
+    
+    
+    
+    return pd.DataFrame(subsidies_df)
+
+
+async def load_subsidies_file():
+    try:
+        y = yadisk.YaDisk(token=OAUTH_TOKEN)
+        local_directory = 'subsidies'
+
+        if not os.path.exists(local_directory):
+            os.mkdir(local_directory)
+
+        if y.is_file('/Программы/Субсидия.xlsx'):
+            y.download('/Программы/Субсидия.xlsx', f'{local_directory}/субсидии.xlsx')
+        print('Файл субсидии загружен')
+    except:
+        print('ошибка файла загрузки')
+
     
 
-    return periods_df
-    
-    
-    
-    
+
 async def load_values(spreadsheet, redis):
     try:
         print('Loading values into Redis...')
@@ -435,7 +470,6 @@ async def load_values(spreadsheet, redis):
                 unique_key = str(row[4]).lower()
                 pipeline.sadd(f"town:{town_name}", unique_key)
                 pipeline.set(f"data:{unique_key}", json.dumps(row))
-                
 
         await pipeline.execute()
         print('All values loaded successfully.')
@@ -455,16 +489,13 @@ async def search_values(query, redis):
         keys_to_fetch = [f"data:{key}" for key in unique_keys]
         data_json_list = await redis.mget(keys_to_fetch)
 
-        found_values_a = sorted([json.loads(data_json) for data_json in data_json_list if data_json])
-        
+        found_values_a = sorted([json.loads(data_json)
+                                for data_json in data_json_list if data_json])
 
         return found_values_a
     else:
         print("No unique keys found for the query.")
         return None
-        
-
-
 
 
 async def search_values_levenshtein(query, spreadsheet, threshold=0.7, max_results=5):
@@ -481,7 +512,8 @@ async def search_values_levenshtein(query, spreadsheet, threshold=0.7, max_resul
         for row in rows:
             try:
                 if len(row) > 0:
-                    similarity = fuzz.token_sort_ratio(normalized_query, normalize_text_v2(row[0]))
+                    similarity = fuzz.token_sort_ratio(
+                        normalized_query, normalize_text_v2(row[0]))
                     if similarity >= (threshold * 100):
                         all_matches.append((row, similarity))
             except IndexError:

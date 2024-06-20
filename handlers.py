@@ -14,9 +14,11 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import Message
 from datetime import datetime, time, timedelta, timezone
 import csv
+
+from matplotlib import pyplot as plt
 from images import default_profile
 from mongo_connect import save_staff_dict, save_survey_results
-from google_connections import get_authorized_client_and_spreadsheet, search_yandex_2023_values, search_in_pokazatel_504p, search_in_ucn2, search_schools_values, load_otpusk_data, search_values, search_values_levenshtein, search_szoreg_values, get_value, init_redis
+from google_connections import get_authorized_client_and_spreadsheet, search_subsidies_info, search_yandex_2023_values, search_in_pokazatel_504p, search_in_ucn2, search_schools_values, load_otpusk_data, search_values, search_values_levenshtein, search_szoreg_values, get_value, init_redis
 from mongo_connect import search_survey_results
 from openai_file import handle_digital_ministry_info
 import asyncio
@@ -35,6 +37,8 @@ import json
 from animations_providers import (megafon_id, mts_id, tele2_id, beeline_id)
 from main import bot
 from google_connections import init_redis
+import imgkit
+
 
 info_text_storage = {}
 user_messages = {}
@@ -95,6 +99,7 @@ class Survey(StatesGroup):
 
 def get_employees_on_vacation(otpusk_data, days_ahead=3):
     today = datetime.today().date()
+    ic(today)
     future_vacation_start = today + timedelta(days=days_ahead)
     employees_on_vacation = []
     employees_starting_vacation_soon = []
@@ -102,7 +107,7 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
     for index, row in otpusk_data.iterrows():
         start_date = datetime.strptime(
             row['Дата начала фактического отпуска'], "%d.%m.%Y").date()
-       
+        ic(start_date)
         end_date = datetime.strptime(
             row['Дата конца фактического отпуска'], "%d.%m.%Y").date()
 
@@ -112,29 +117,83 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
         if today < start_date <= future_vacation_start:
             employees_starting_vacation_soon.append(row)
 
+    ic(employees_on_vacation)
+    ic(employees_starting_vacation_soon)
     return employees_on_vacation, employees_starting_vacation_soon
 
+@main_router.message(Command('subsidies'))
+async def handle_subsidies_command(message: types.Message):
+
+    from pandas.plotting import table
 
 
+    # hide the y axis
+
+    
+
+    subsidies_df = await search_subsidies_info()
+    
+    subsidies_df = subsidies_df.dropna(subset=['МО', 'Н.п.'])
+    def format_date(date_str):
+        try:
+            return pd.to_datetime(date_str).strftime('%d.%m')
+        except ValueError:
+            return date_str
+
+    # Применение функции форматирования к столбцам с датами
+    date_columns = ['Установка \nАМС', 'Монтаж \nБС', 'Запуск \nуслуг']
+    for col in date_columns:
+        subsidies_df[col] = subsidies_df[col].apply(format_date)
+
+    subsidies_df = subsidies_df.fillna('н/д').infer_objects(copy=False)
+
+    subsidies_df['Волна'] = subsidies_df.apply(lambda x: '1' if x['НПА'] == '1013-п' else '2', axis=1)
+    #subsidies_df['Волна'] = subsidies_df['Волна']
+
+    #subsidies_df['MO'] = subsidies_df['MO']
+    
+
+ 
+    subsidies_response = subsidies_df[['Волна','МО', 'Н.п.','Аренда земли', 'Установка \nАМС', 'Монтаж \nБС', 'Запуск \nуслуг']]
+    subsidies_response.to_excel('subsid.xlsx')
+    
+    
+    fig, ax = plt.subplots()
+    ax.axis('tight')
+    ax.axis('off')
+    tbl = table(ax, subsidies_response, loc='center', cellLoc='center', colWidths=[0.2]*len(subsidies_response.columns)) 
+    tbl.auto_set_font_size(False)
+    tbl.set_fontsize(8)
+    tbl.scale(1.3, 1.3)
+    
+    # Сохранение изображения
+    fig.savefig('mytable.png', bbox_inches='tight', dpi=400)
+    plt.close(fig)
+
+    # Отправка изображения с помощью aiogram
+    photo = FSInputFile('mytable.png')
+    subs_table = FSInputFile('subsid.xlsx')
+    await message.answer_document(subs_table)
+    await message.answer_photo(photo)
+
+    
+    
+   # await message.answer_photo('mytable.png')
+    #response_text = subsidies_response.to_string(header=[])
+
+   # await message.answer(f'{response_text}', parse_mode='HTML')
 
 
 @main_router.message(Command('bi'))
 async def handle_bi_command(message: types.Message):
-    
 
     builder = InlineKeyboardBuilder()
-    
 
-        
-        
-    builder.button(text="test webapp", web_app=WebAppInfo(url="https://rejoller.pythonanywhere.com/"))
-            
+    builder.button(text="test webapp", web_app=WebAppInfo(
+        url="https://rejoller.pythonanywhere.com/"))
 
-       
     keyboard = builder.as_markup()
 
-
-    
     await message.answer(text='BI', reply_markup=keyboard)
 
 
@@ -143,7 +202,6 @@ async def handle_otpusk_command(message: types.Message, days_ahead=14):
 
     await log_user_data_from_message(message)
     otpusk_data = await load_otpusk_data()
-    ic(otpusk_data)
 
     employees_on_vacation, employees_starting_vacation_soon = get_employees_on_vacation(
         otpusk_data, days_ahead)
@@ -172,9 +230,6 @@ async def handle_otpusk_command(message: types.Message, days_ahead=14):
     for msg in messages:
 
         await bot.send_message(message.chat.id, msg, parse_mode='HTML')
-
-
-
 
 
 @main_router.message(CommandStart())
@@ -216,33 +271,40 @@ async def echo_gif(message: Message):
     print(file_id)
     await message.answer(message.animation.file_id)
 
+
 @main_router.message(F.document)
 async def contacts_handler(message: types.Message):
+    user_name = message.from_user.first_name
     document = message.document
 
     # Преобразуем имя файла к нижнему регистру для сравнения
     file_name = document.file_name.lower()
     if "рафик" in file_name:
-        destination = os.path.join(os.getcwd(), document.file_name)
-        
-        # Проверка существует ли файл с таким именем
-        if os.path.exists(destination):
-            os.remove(destination)
-            await message.answer('Файл перезаписан')
 
+        directory = 'otpusk'
+        if not os.path.exists(directory):
+            os.mkdir(directory)
+
+        destination = os.path.join(os.getcwd(), directory, file_name)
         file_info = await bot.get_file(document.file_id)
         await bot.download_file(file_info.file_path, destination)
-        await message.answer(f'График отпусков сохранен')
-        
-    else:
-        await message.answer(f'ошибка, попробуйте еще раз. Имя файла должно начинаться на "График" (без учета регистра)')
-        
+        await message.answer(f'Файл с отпусками загружен.\nХорошего дня тебе, {user_name}😊')
 
+        data_dict = pd.read_excel(destination, sheet_name='2024')
+        print(data_dict)
 
+    if "убсид" in file_name:
 
+        directory = 'subsidies'
+        if not os.path.exists(directory):
+            os.mkdir(directory)
 
+        subs_destination = os.path.join(os.getcwd(), directory, file_name)
 
+        file_info = await bot.get_file(document.file_id)
 
+        await bot.download_file(file_info.file_path, subs_destination)
+        await message.answer(f'Файл {file_name} загружен! \nХорошего дня тебе, {user_name} 😊')
 
 
 @main_router.message(F.photo)
@@ -256,16 +318,10 @@ async def handle_text(message: Message, state: FSMContext):
     reaction_emoji = ReactionTypeEmoji(emoji='🤓')
     await message.react(reaction=[reaction_emoji], is_big=True)
     redis = await init_redis()
-
-  #  user_state = await state.get_state()
-
     global info_text_storage
     await state.set_state(Form.default)
-   # user_first_name = message.from_user.first_name
     await log_user_data_from_message(message)
-  #  chat_id = message.chat.id
 
-    # user_id = message.from_user.id  # Получаем user_id
 
     votes_response = ""
     response = ''
@@ -385,7 +441,7 @@ async def handle_text(message: Message, state: FSMContext):
                     else:
                         operators_response += ''.join(operator_responses)
 
-                    #response += operators_response
+                    # response += operators_response
 
             if yandex_2023_values:
                 yandex_2023_response = '\n\n\n<b>Информация из таблицы 2023</b>\n\n'
@@ -570,7 +626,6 @@ async def handle_text(message: Message, state: FSMContext):
             if schools_values or szoreg_values or survey_results_values:
                 await message.answer("Дополнительная информация", reply_markup=builder.as_markup())
 
-
             else:
                 await bot.send_message(message.chat.id, "Нет дополнительной информации для отображения.")
 
@@ -675,7 +730,7 @@ async def handle_select_number(message: Message, state: FSMContext):
             "    |МТС": selected_np[42] if len(selected_np) > 42 else None,
         }
 
-        #operators_response = '\nОценка жителей:\n'
+        # operators_response = '\nОценка жителей:\n'
 
         # Список для хранения ответов от операторов
         operator_responses = []
@@ -724,7 +779,7 @@ async def handle_select_number(message: Message, state: FSMContext):
        # else:
         #    operators_response += ''.join(operator_responses)
 
-        #response += operators_response
+        # response += operators_response
 
         if yandex_2023_values:
             yandex_2023_response = '\n\n<b>Информация из таблицы 2023</b>\n\n'
@@ -816,12 +871,12 @@ async def handle_select_number(message: Message, state: FSMContext):
         if itog_ucn_2023:
             response += f'\n\nкомментарий Минцифры России об УЦН 2024: {itog_ucn_2023}'
 
-        #response += f'\n{operators_response}\n'
+        # response += f'\n{operators_response}\n'
 
         response += f'{ucn2_response}{yandex_2023_response}{votes_response}\n'
 
         info_text_storage[message.chat.id] = response
-        
+
         await bot.send_message(message.chat.id, "<b>Выбранный населенный пункт</b>", parse_mode='HTML', reply_markup=types.ReplyKeyboardRemove())
 
         await bot.send_location(message.chat.id, latitude, longitude)
@@ -913,9 +968,6 @@ async def handle_select_number(message: Message, state: FSMContext):
 
 
 # Функции для работы команды /otpusk
-
-
-
 
 
 @main_router.callback_query(F.data.contains("school"))

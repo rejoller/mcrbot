@@ -4,7 +4,7 @@ from google.oauth2 import service_account
 from google.oauth2 import service_account
 import gspread_asyncio
 from aiogram.fsm.storage.redis import (RedisStorage, DefaultKeyBuilder)
-from google_connections import init_redis, load_szoreg_values, load_yandex_2023_values, load_pokazatel_504p_values, load_ucn2_values, load_schools_values, load_votes_values, load_survey_values, load_values, load_otpusk_data, SPREADSHEET_ID
+from google_connections import init_redis, load_subsidies_file, load_szoreg_values, load_yandex_2023_values, load_pokazatel_504p_values, load_ucn2_values, load_schools_values, load_votes_values, load_survey_values, load_values, load_otpusk_data, SPREADSHEET_ID
 from aiogram import types
 from google.oauth2 import service_account
 from config import bot_token
@@ -58,9 +58,10 @@ async def on_startup():
         gc = await agcm.authorize()
         spreadsheet = await gc.open_by_key(SPREADSHEET_ID)
         await load_values(spreadsheet, redis)
-        await load_szoreg_values(spreadsheet, redis)
-        await load_pokazatel_504p_values(spreadsheet, redis)
-        await load_schools_values(spreadsheet, redis)
+        await load_subsidies_file()
+        #await load_szoreg_values(spreadsheet, redis)
+        #await load_pokazatel_504p_values(spreadsheet, redis)
+        #await load_schools_values(spreadsheet, redis)
         #await load_yandex_2023_values(spreadsheet, redis)
         #await load_ucn2_values(spreadsheet, redis)
         #await load_survey_values(spreadsheet, redis)
