@@ -14,9 +14,9 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import Message
 from datetime import datetime, time, timedelta, timezone
 import csv
-
+from pandas.plotting import table
 from matplotlib import pyplot as plt
-from images import default_profile
+from images import default_profile, tower
 from mongo_connect import save_staff_dict, save_survey_results
 from google_connections import get_authorized_client_and_spreadsheet, search_subsidies_info, search_yandex_2023_values, search_in_pokazatel_504p, search_in_ucn2, search_schools_values, load_otpusk_data, search_values, search_values_levenshtein, search_szoreg_values, get_value, init_redis
 from mongo_connect import search_survey_results
@@ -37,7 +37,7 @@ import json
 from animations_providers import (megafon_id, mts_id, tele2_id, beeline_id)
 from main import bot
 from google_connections import init_redis
-import imgkit
+
 
 
 info_text_storage = {}
@@ -84,6 +84,7 @@ async def log_user_data_from_message(message):
 class Form(StatesGroup):
     default = State()
     waiting_for_number = State()
+    development = State()
 
 
 class Survey(StatesGroup):
@@ -121,17 +122,35 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
     ic(employees_starting_vacation_soon)
     return employees_on_vacation, employees_starting_vacation_soon
 
-@main_router.message(Command('subsidies'))
-async def handle_subsidies_command(message: types.Message):
-
-    from pandas.plotting import table
 
 
-    # hide the y axis
+@main_router.message(Command('development'))
+async def handle_development(message: types.Message, state: FSMContext):
+    await state.set_state(Form.development)
+    builder = InlineKeyboardBuilder()
 
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text=f"Субсидия", callback_data='subsidies')],
+        [InlineKeyboardButton(
+            text=f"Главное меню", callback_data='main_menu')]
+        
+    ])
+    builder.attach(InlineKeyboardBuilder.from_markup(markup))
+
+
+    await message.answer_photo(photo=tower, caption=f'Вы находитесь в меню реализации проектов'
+                               'выберите проект или можете выйти в главное меню', reply_markup=markup)
     
 
+@main_router.callback_query(F.data.contains("subsidies"), StateFilter(Form.development))
+async def handle_subsidies_query(query: types.CallbackQuery, state: FSMContext):
+    data = query.data
+    
+    
+    from main import bot
     subsidies_df = await search_subsidies_info()
+    ic(subsidies_df)
     
     subsidies_df = subsidies_df.dropna(subset=['МО', 'Н.п.'])
     def format_date(date_str):
@@ -145,16 +164,13 @@ async def handle_subsidies_command(message: types.Message):
     for col in date_columns:
         subsidies_df[col] = subsidies_df[col].apply(format_date)
 
-    subsidies_df = subsidies_df.fillna('н/д').infer_objects(copy=False)
-
     subsidies_df['Волна'] = subsidies_df.apply(lambda x: '1' if x['НПА'] == '1013-п' else '2', axis=1)
-    #subsidies_df['Волна'] = subsidies_df['Волна']
-
-    #subsidies_df['MO'] = subsidies_df['MO']
     
 
- 
-    subsidies_response = subsidies_df[['Волна','МО', 'Н.п.','Аренда земли', 'Установка \nАМС', 'Монтаж \nБС', 'Запуск \nуслуг']]
+    subsidies_df = subsidies_df.rename(columns ={'Установка \nАМС':'Установка АМС', 'Монтаж \nБС':'Монтаж БС', 'Запуск \nуслуг':'Запуск услуг'})
+    subsidies_response = subsidies_df[['Волна','МО', 'Н.п.','Аренда земли', 'Установка АМС', 'Монтаж БС', 'Запуск услуг']]
+    
+    subsidies_response.style.format(na_rep='нет данных')
     subsidies_response.to_excel('subsid.xlsx')
     
     
@@ -162,8 +178,8 @@ async def handle_subsidies_command(message: types.Message):
     ax.axis('tight')
     ax.axis('off')
     tbl = table(ax, subsidies_response, loc='center', cellLoc='center', colWidths=[0.2]*len(subsidies_response.columns)) 
-    tbl.auto_set_font_size(False)
-    tbl.set_fontsize(8)
+    tbl.auto_set_font_size(True)
+    #tbl.set_fontsize(8)
     tbl.scale(1.3, 1.3)
     
     # Сохранение изображения
@@ -173,15 +189,38 @@ async def handle_subsidies_command(message: types.Message):
     # Отправка изображения с помощью aiogram
     photo = FSInputFile('mytable.png')
     subs_table = FSInputFile('subsid.xlsx')
-    await message.answer_document(subs_table)
-    await message.answer_photo(photo)
 
-    
-    
-   # await message.answer_photo('mytable.png')
-    #response_text = subsidies_response.to_string(header=[])
 
-   # await message.answer(f'{response_text}', parse_mode='HTML')
+    builder = InlineKeyboardBuilder()
+
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text=f"Главное меню", callback_data='main_menu')]
+        
+    ])
+    builder.attach(InlineKeyboardBuilder.from_markup(markup))
+
+    #await query.message.answer_document(subs_table)
+    await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
+    await query.message.answer_photo(photo, caption='Реализации предоставления субсидии малочисленным населенным пунктам', reply_markup=markup)
+
+
+
+@main_router.callback_query(F.data.contains("main_menu"))
+async def handle_subsidies_query(query: types.CallbackQuery, state: FSMContext):
+    await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
+    await state.clear()
+    await query.message.answer(f'Вы в главном меню. \nВведите название населенного пункта, чтобы получить '
+                               'информацию о качестве связи или пройти опрос\nТакже есть команды: /otpusk - узнать кто в отпуске\n'
+                               '/development - информация о проектах министерства')
+
+
+@main_router.message(Command('help'))
+async def handle_help(message: types.Message, state: FSMContext):
+    await state.clear()
+    await message.answer(f'\nВведите название населенного пункта, чтобы получить '
+                               'информацию о качестве связи или пройти опрос\nТакже есть команды: /otpusk - узнать кто в отпуске\n'
+                               '/development - информация о проектах министерства')
 
 
 @main_router.message(Command('bi'))
@@ -241,7 +280,13 @@ async def handle_start(message: Message, state: FSMContext):
         f'Я бот министерства цифрового развития Красноярского края!'
         '\n Введи наименование любого населенного пункта края, '
 
-        'чтобы получить информацию о связи в нем или оставить обратную связь о качестве услуг\n')
+        'чтобы получить информацию о связи в нем или оставить обратную связь о качестве услуг\n\n'
+        'Также есть команды: /otpusk - узнать кто в отпуске\n'
+                               '/development - информация о проектах министерства'
+        )
+    
+    await state.clear()
+    
 
 
 @main_router.message(F.location)
