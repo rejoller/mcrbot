@@ -59,7 +59,7 @@ async def on_startup():
         spreadsheet = await gc.open_by_key(SPREADSHEET_ID)
         await load_values(spreadsheet, redis)
         await load_subsidies_file()
-        #await load_szoreg_values(spreadsheet, redis)
+        await load_szoreg_values(spreadsheet, redis)
         await load_pokazatel_504p_values(spreadsheet, redis)
         await load_schools_values(spreadsheet, redis)
         #await load_yandex_2023_values(spreadsheet, redis)

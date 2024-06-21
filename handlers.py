@@ -1,4 +1,4 @@
-
+import functools
 from icecream import ic
 from io import BytesIO
 from zoneinfo import ZoneInfo
@@ -16,7 +16,7 @@ from datetime import datetime, time, timedelta, timezone
 import csv
 from pandas.plotting import table
 from matplotlib import pyplot as plt
-from images import default_profile, tower
+from images import default_profile, tower, complete_uploading_vacations
 from mongo_connect import save_staff_dict, save_survey_results
 from google_connections import get_authorized_client_and_spreadsheet, search_subsidies_info, search_yandex_2023_values, search_in_pokazatel_504p, search_in_ucn2, search_schools_values, load_otpusk_data, search_values, search_values_levenshtein, search_szoreg_values, get_value, init_redis
 from mongo_connect import search_survey_results
@@ -100,7 +100,7 @@ class Survey(StatesGroup):
 
 def get_employees_on_vacation(otpusk_data, days_ahead=3):
     today = datetime.today().date()
-    ic(today)
+    
     future_vacation_start = today + timedelta(days=days_ahead)
     employees_on_vacation = []
     employees_starting_vacation_soon = []
@@ -118,8 +118,7 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
         if today < start_date <= future_vacation_start:
             employees_starting_vacation_soon.append(row)
 
-    ic(employees_on_vacation)
-    ic(employees_starting_vacation_soon)
+    
     return employees_on_vacation, employees_starting_vacation_soon
 
 
@@ -142,15 +141,14 @@ async def handle_development(message: types.Message, state: FSMContext):
     await message.answer_photo(photo=tower, caption=f'Вы находитесь в меню реализации проектов'
                                'выберите проект или можете выйти в главное меню', reply_markup=markup)
     
-
+@functools.lru_cache(maxsize=10)
 @main_router.callback_query(F.data.contains("subsidies"), StateFilter(Form.development))
 async def handle_subsidies_query(query: types.CallbackQuery, state: FSMContext):
-    data = query.data
-    
     
     from main import bot
+    await bot.send_chat_action(action='upload_photo', chat_id = query.from_user.id)
     subsidies_df = await search_subsidies_info()
-    ic(subsidies_df)
+    
     
     subsidies_df = subsidies_df.dropna(subset=['МО', 'Н.п.'])
     def format_date(date_str):
@@ -182,7 +180,7 @@ async def handle_subsidies_query(query: types.CallbackQuery, state: FSMContext):
     #tbl.set_fontsize(8)
     tbl.scale(1.3, 1.3)
     
-    # Сохранение изображения
+    
     fig.savefig('mytable.png', bbox_inches='tight', dpi=400)
     plt.close(fig)
 
@@ -200,7 +198,7 @@ async def handle_subsidies_query(query: types.CallbackQuery, state: FSMContext):
     ])
     builder.attach(InlineKeyboardBuilder.from_markup(markup))
 
-    #await query.message.answer_document(subs_table)
+    
     await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
     await query.message.answer_photo(photo, caption='Реализации предоставления субсидии малочисленным населенным пунктам', reply_markup=markup)
 
@@ -211,16 +209,16 @@ async def handle_subsidies_query(query: types.CallbackQuery, state: FSMContext):
     await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
     await state.clear()
     await query.message.answer(f'Вы в главном меню. \nВведите название населенного пункта, чтобы получить '
-                               'информацию о качестве связи или пройти опрос\nТакже есть команды: /otpusk - узнать кто в отпуске\n'
-                               '/development - информация о проектах министерства')
+                               'информацию о качестве связи или пройти опрос\n\n**Также есть команды:** \n/otpusk - узнать кто в отпуске\n'
+                               '/development - информация о проектах министерства', parse_mode='Markdown')
 
 
 @main_router.message(Command('help'))
 async def handle_help(message: types.Message, state: FSMContext):
     await state.clear()
     await message.answer(f'\nВведите название населенного пункта, чтобы получить '
-                               'информацию о качестве связи или пройти опрос\nТакже есть команды: /otpusk - узнать кто в отпуске\n'
-                               '/development - информация о проектах министерства')
+                               'информацию о качестве связи или пройти опрос\n\n**Также есть команды:** \n/otpusk - узнать кто в отпуске\n'
+                               '/development - информация о проектах министерства', parse_mode='Markdown')
 
 
 @main_router.message(Command('bi'))
@@ -291,7 +289,7 @@ async def handle_start(message: Message, state: FSMContext):
 
 @main_router.message(F.location)
 async def handle_location(message: types.Message, state: FSMContext):
-    # Обработка локации
+    
     from mongo_connect import save_user_location
     user_id = message.from_user.id
     location_data = {"latitude": message.location.latitude,
@@ -302,7 +300,7 @@ async def handle_location(message: types.Message, state: FSMContext):
 
 @main_router.message(F.contact)
 async def handle_contacts(message: types.Message, state: FSMContext):
-    # Обработка локации
+    
     from mongo_connect import save_user_contact
     user_id = message.from_user.id
     contact_data = {"contact": message.contact.phone_number}
@@ -322,7 +320,7 @@ async def contacts_handler(message: types.Message):
     user_name = message.from_user.first_name
     document = message.document
 
-    # Преобразуем имя файла к нижнему регистру для сравнения
+    
     file_name = document.file_name.lower()
     if "рафик" in file_name:
 
@@ -333,10 +331,10 @@ async def contacts_handler(message: types.Message):
         destination = os.path.join(os.getcwd(), directory, file_name)
         file_info = await bot.get_file(document.file_id)
         await bot.download_file(file_info.file_path, destination)
-        await message.answer(f'Файл с отпусками загружен.\nХорошего дня тебе, {user_name}😊')
+        await message.answer_photo(caption=f'Файл с отпусками загружен.\nХорошего дня тебе, {user_name}😊',
+                                   photo=complete_uploading_vacations)
 
-        data_dict = pd.read_excel(destination, sheet_name='2024')
-        print(data_dict)
+        
 
     if "убсид" in file_name:
 
@@ -593,6 +591,7 @@ async def handle_text(message: Message, state: FSMContext):
             ])
             survey_builder.attach(InlineKeyboardBuilder.from_markup(markup))
             response += f'⠀'
+            response += f'Узнать о проектах министерства /development'
             await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup())
 
             # if message.from_user.id in allowed_users:
@@ -938,6 +937,7 @@ async def handle_select_number(message: Message, state: FSMContext):
         ])
         survey_builder.attach(InlineKeyboardBuilder.from_markup(markup))
         response += f'⠀'
+        response += f'Узнать о проектах министерства /development'
         await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup())
 
         builder_2 = InlineKeyboardBuilder()
