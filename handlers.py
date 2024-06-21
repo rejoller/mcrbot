@@ -138,8 +138,8 @@ async def handle_development(message: types.Message, state: FSMContext):
     builder.attach(InlineKeyboardBuilder.from_markup(markup))
 
 
-    await message.answer_photo(photo=tower, caption=f'Вы находитесь в меню реализации проектов'
-                               'выберите проект или можете выйти в главное меню', reply_markup=markup)
+    await message.answer_photo(photo=tower, caption=f'Вы находитесь в меню реализации проектов.\n'
+                               'Выберите проект или можете выйти в главное меню', reply_markup=markup)
     
 @functools.lru_cache(maxsize=10)
 @main_router.callback_query(F.data.contains("subsidies"), StateFilter(Form.development))
@@ -164,25 +164,53 @@ async def handle_subsidies_query(query: types.CallbackQuery, state: FSMContext):
 
     subsidies_df['Волна'] = subsidies_df.apply(lambda x: '1' if x['НПА'] == '1013-п' else '2', axis=1)
     
-
-    subsidies_df = subsidies_df.rename(columns ={'Установка \nАМС':'Установка АМС', 'Монтаж \nБС':'Монтаж БС', 'Запуск \nуслуг':'Запуск услуг'})
-    subsidies_response = subsidies_df[['Волна','МО', 'Н.п.','Аренда земли', 'Установка АМС', 'Монтаж БС', 'Запуск услуг']]
+    subsidies_df = subsidies_df.fillna('нет данных')
+    subsidies_df = subsidies_df.rename(columns ={'МО':'Муниципалитет', 'Н.п.':'Населенный пункт','Установка \nАМС':'Установка АМС', 'Монтаж \nБС':'Монтаж БС', 'Запуск \nуслуг':'Запуск услуг'})
+    subsidies_df.style.set_properties(subset=['Волна'], **{'width': '20px'})
+    subsidies_response = subsidies_df[['Волна','Муниципалитет', 'Населенный пункт','Аренда земли', 'Установка АМС', 'Монтаж БС', 'Запуск услуг']]
     
-    subsidies_response.style.format(na_rep='нет данных')
+    
+    subsidies_response.style.hide(axis='index')
+    subsidies_response = subsidies_response.reset_index(drop=True)
+    
     subsidies_response.to_excel('subsid.xlsx')
     
     
     fig, ax = plt.subplots()
     ax.axis('tight')
     ax.axis('off')
-    tbl = table(ax, subsidies_response, loc='center', cellLoc='center', colWidths=[0.2]*len(subsidies_response.columns)) 
-    tbl.auto_set_font_size(True)
-    #tbl.set_fontsize(8)
+    
+    column_widths = [0.5 if col in ['Муниципалитет', 'Населенный пункт'] else 0.1 if col == 'Волна' else 0.4 for col in subsidies_response.columns]
+    
+
+    tbl = table(ax, subsidies_response, loc='center', colWidths=column_widths, cellLoc='center')  # Сначала задаем общее выравнивание для всех ячеек
+
+    # Настраиваем выравнивание для отдельных столбцов
+    for i, col in enumerate(subsidies_response.columns):
+        cell = tbl[(0, i)]
+        cell.set_text_props(weight='bold', color='white')
+        cell.set_facecolor('#40466e')
+        cell.set_fontsize(10)
+
+    # Настраиваем выравнивание для отдельных ячеек
+    columns_to_align_left = ['Муниципалитет', 'Населенный пункт']
+    for key, cell in tbl.get_celld().items():
+        row, col = key
+        if col == -1:  # Пропускаем заголовок строк
+            continue
+        column_name = subsidies_response.columns[col]
+        if column_name in columns_to_align_left:
+            cell.set_text_props(ha='left')
+        # Добавляем границы ячеек
+        cell.set_edgecolor('black')
+        cell.set_linewidth(0.5)
+
+    tbl.auto_set_font_size(False)
+    tbl.set_fontsize(10)
     tbl.scale(1.3, 1.3)
-    
-    
+
     fig.savefig('mytable.png', bbox_inches='tight', dpi=400)
-    plt.close(fig)
+    plt.close(fig) 
 
     # Отправка изображения с помощью aiogram
     photo = FSInputFile('mytable.png')
@@ -200,7 +228,7 @@ async def handle_subsidies_query(query: types.CallbackQuery, state: FSMContext):
 
     
     await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
-    await query.message.answer_photo(photo, caption='Реализации предоставления субсидии малочисленным населенным пунктам', reply_markup=markup)
+    await query.message.answer_photo(photo, caption='Реализация предоставления субсидии малочисленным населенным пунктам', reply_markup=markup)
 
 
 
