@@ -86,7 +86,7 @@ async def main():
     await on_startup()
     print('Бот запущен и готов к приему сообщений')
 
-    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types(), skip_updates=True)
 
 if __name__ == "__main__":
     asyncio.run(main())

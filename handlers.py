@@ -108,7 +108,7 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
     for index, row in otpusk_data.iterrows():
         start_date = datetime.strptime(
             row['Дата начала фактического отпуска'], "%d.%m.%Y").date()
-        ic(start_date)
+        
         end_date = datetime.strptime(
             row['Дата конца фактического отпуска'], "%d.%m.%Y").date()
 
@@ -126,6 +126,7 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
 @main_router.message(Command('development'))
 async def handle_development(message: types.Message, state: FSMContext):
     await state.set_state(Form.development)
+    await log_user_data_from_message(message)
     builder = InlineKeyboardBuilder()
 
     markup = InlineKeyboardMarkup(inline_keyboard=[
@@ -387,6 +388,7 @@ async def get_photo_id(message: Message):
 async def handle_text(message: Message, state: FSMContext):
 
     reaction_emoji = ReactionTypeEmoji(emoji='🤓')
+    
     await message.react(reaction=[reaction_emoji], is_big=True)
     redis = await init_redis()
     global info_text_storage
@@ -450,7 +452,7 @@ async def handle_text(message: Message, state: FSMContext):
 
                 yandex_2023_values = await yandex_2023_task
                 pokazatel_504p_values = await pokazatel_504p_task
-                ic(pokazatel_504p_values)
+                
                 ucn2_values = await ucn2_task
                 survey_results_values = await survey_results_task
                 szoreg_values = await szoreg_task
@@ -626,8 +628,8 @@ async def handle_text(message: Message, state: FSMContext):
             ])
             survey_builder.attach(InlineKeyboardBuilder.from_markup(markup))
             
-            response += f'\nУзнать о проектах министерства /development'
-            await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup())
+            response += f'\nУзнать о проектах министерства \n/development'
+            await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup(), message_effect_id='5046509860389126442')
 
             # if message.from_user.id in allowed_users:
             # button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", callback_data=json.dumps({"type": "digital_ministry_info", "chat_id": message.chat.id}))
@@ -771,7 +773,7 @@ async def handle_select_number(message: Message, state: FSMContext):
             return
 
         index = int(index_text)
-        ic(index)
+        
 
         if index <= 0 or index > len(found_values):
             await bot.send_message(chat_id, f'Введено некорректное значение. Пожалуйста, введите число в диапазоне от 1 до {len(found_values)}.')
@@ -937,8 +939,7 @@ async def handle_select_number(message: Message, state: FSMContext):
             )
         except Exception as e:
             print(f"Произошла ошибка: {e}")
-        ic(index)
-        ic(found_values)
+        
         response = f'<b>{await get_value(found_values[index - 1], 1)}</b>'
 
         if selsovet_info:
@@ -983,8 +984,8 @@ async def handle_select_number(message: Message, state: FSMContext):
         ])
         survey_builder.attach(InlineKeyboardBuilder.from_markup(markup))
         
-        response += f'\nУзнать о проектах министерства /development'
-        await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup())
+        response += f'\nУзнать о проектах министерства \n/development'
+        await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup(), message_effect_id='5046509860389126442')
 
         builder_2 = InlineKeyboardBuilder()
 
