@@ -571,7 +571,7 @@ async def handle_text(message: Message, state: FSMContext):
             response = f'<b>{found_values[0][1]}</b>'
 
             try:
-                selsovet_info, tanya_sub_info_year, tanya_sub_info_provider, taksofony_info, arctic_info, internet_info, population_2010, population_2020, itog_ucn_2023 = await asyncio.gather(
+                selsovet_info, tanya_sub_info_year, tanya_sub_info_provider, taksofony_info, arctic_info, internet_info, population_2010, population_2020, itog_ucn_2023, tv = await asyncio.gather(
                     get_value(found_values[0], 20),
                     get_value(found_values[0], 13),
                     get_value(found_values[0], 14),
@@ -581,6 +581,7 @@ async def handle_text(message: Message, state: FSMContext):
                     get_value(found_values[0], 2),
                     get_value(found_values[0], 5),
                     get_value(found_values[0], 24),
+                    get_value(found_values[0], 43),
                     return_exceptions=True  # Возврат исключений как объектов
                 )
             except Exception as e:
@@ -596,6 +597,8 @@ async def handle_text(message: Message, state: FSMContext):
                 response += f'\n☎️таксофон: {taksofony_info}'
 
             response += f'\n🌐интернет: {internet_info}️\n'
+            if tv:
+                response += f'\n📺телевидение{tv}'
             response += f'⠀'
             response += f'<pre>📱Сотовая связь:\n{pokazatel_504p_response}</pre>\n'
 
@@ -906,7 +909,7 @@ async def handle_select_number(message: Message, state: FSMContext):
         survey_data_storage[message.chat.id] = survey_results_values
 
         try:
-            selsovet_info, tanya_sub_info_year, tanya_sub_info_provider, taksofony_info, arctic_info, internet_info, population_2010, population_2020, itog_ucn_2023 = await asyncio.gather(
+            selsovet_info, tanya_sub_info_year, tanya_sub_info_provider, taksofony_info, arctic_info, internet_info, population_2010, population_2020, itog_ucn_2023, tv = await asyncio.gather(
                 get_value(found_values[index - 1], 20),
                 get_value(found_values[index - 1], 13),
                 get_value(found_values[index - 1], 14),
@@ -916,6 +919,7 @@ async def handle_select_number(message: Message, state: FSMContext):
                 get_value(found_values[index - 1], 2),
                 get_value(found_values[index - 1], 5),
                 get_value(found_values[index - 1], 24),
+                get_value(found_values[index - 1], 43),
                 return_exceptions=True  # Возврат исключений как объектов
             )
         except Exception as e:
@@ -934,6 +938,8 @@ async def handle_select_number(message: Message, state: FSMContext):
             response += f'\n☎️таксофон: {taksofony_info}'
 
         response += f'\n🌐интернет: {internet_info}️\n'
+        if tv:
+            response += f'\n📺телевидение{tv}'
         response += f'⠀'
         response += f'<pre>📱Сотовая связь:\n{pokazatel_504p_response}</pre>\n'
 

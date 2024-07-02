@@ -454,7 +454,7 @@ async def load_subsidies_file():
 async def load_values(spreadsheet, redis):
     try:
         print('Loading values into Redis...')
-        range_name = 'goroda2.0!A1:AQ1721'
+        range_name = 'goroda2.0!A1:AS1721'
         agcm = gspread_asyncio.AsyncioGspreadClientManager(lambda: creds)
         gc = await agcm.authorize()
         spreadsheet = await gc.open_by_key(SPREADSHEET_ID)

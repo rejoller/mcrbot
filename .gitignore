@@ -24,3 +24,6 @@ animations_providers.py
 udo systemctl status mongod/
 udo journalctl -p err/
 images.py
+subsidies/
+VOLS/
+mytable.png
