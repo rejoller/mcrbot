@@ -605,9 +605,9 @@ async def handle_text(message: Message, state: FSMContext):
             if taksofony_info:
                 response += f'\n☎️таксофон: {taksofony_info}'
 
-            response += f'\n🌐интернет: {internet_info}️\n'
+            response += f'\n🌐интернет: {internet_info}️'
             if tv:
-                response += f'\n📺телевидение{tv}'
+                response += f'\n📺телевидение: {tv}'
             response += f'⠀'
             response += f'<pre>📱Сотовая связь:\n{pokazatel_504p_response}</pre>\n'
 
@@ -956,9 +956,9 @@ async def handle_select_number(message: Message, state: FSMContext):
         if taksofony_info:
             response += f'\n☎️таксофон: {taksofony_info}'
 
-        response += f'\n🌐интернет: {internet_info}️\n'
+        response += f'\n🌐интернет: {internet_info}️'
         if tv:
-            response += f'\n📺телевидение{tv}'
+            response += f'\n📺телевидение: {tv}'
         response += f'⠀'
         response += f'<pre>📱Сотовая связь:\n{pokazatel_504p_response}</pre>\n'
 
