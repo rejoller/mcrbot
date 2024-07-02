@@ -108,7 +108,7 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
     for index, row in otpusk_data.iterrows():
         start_date = datetime.strptime(
             row['Дата начала фактического отпуска'], "%d.%m.%Y").date()
-        ic(start_date)
+        
         end_date = datetime.strptime(
             row['Дата конца фактического отпуска'], "%d.%m.%Y").date()
 
@@ -126,6 +126,7 @@ def get_employees_on_vacation(otpusk_data, days_ahead=3):
 @main_router.message(Command('development'))
 async def handle_development(message: types.Message, state: FSMContext):
     await state.set_state(Form.development)
+    await log_user_data_from_message(message)
     builder = InlineKeyboardBuilder()
 
     markup = InlineKeyboardMarkup(inline_keyboard=[
@@ -387,6 +388,7 @@ async def get_photo_id(message: Message):
 async def handle_text(message: Message, state: FSMContext):
 
     reaction_emoji = ReactionTypeEmoji(emoji='🤓')
+    
     await message.react(reaction=[reaction_emoji], is_big=True)
     redis = await init_redis()
     global info_text_storage
@@ -438,7 +440,7 @@ async def handle_text(message: Message, state: FSMContext):
                 yandex_2023_task = tg.create_task(
                     search_yandex_2023_values(found_values[0][4], redis))
                 pokazatel_504p_task = tg.create_task(
-                    search_in_pokazatel_504p(found_values[0][4], redis))
+                    search_in_pokazatel_504p(found_values[0][4]))
                 ucn2_task = tg.create_task(
                     search_in_ucn2(found_values[0][4], redis))
                 survey_results_task = tg.create_task(
@@ -450,6 +452,7 @@ async def handle_text(message: Message, state: FSMContext):
 
                 yandex_2023_values = await yandex_2023_task
                 pokazatel_504p_values = await pokazatel_504p_task
+                
                 ucn2_values = await ucn2_task
                 survey_results_values = await survey_results_task
                 szoreg_values = await szoreg_task
@@ -518,15 +521,21 @@ async def handle_text(message: Message, state: FSMContext):
                 yandex_2023_response = '\n\n\n<b>Информация из таблицы 2023</b>\n\n'
                 for row in yandex_2023_values:
                     yandex_2023_response += f'Тип подключения: {row[4]}\nОператор: {row[15]}\nСоглашение: {row[7]}\nПодписание соглашения с МЦР: {row[8]}\nПодписание соглашения с АГЗ: {row[9]}\nДата подписания контракта: {row[11]}\nДата установки АМС: {row[12]}\nДата монтажа БС: {row[13]}\nЗапуск услуг: {row[14]}\n\n'
-            if pokazatel_504p_values:
-                for index in range(6, 10):
-                    if len(pokazatel_504p_values[0]) > index and pokazatel_504p_values[0][index] and pokazatel_504p_values[0][index].strip():
-                        value = pokazatel_504p_values[0][index]
-                        if "Хорошее" in value:
-                            value = value.replace("Хорошее", "🟢Хорошее")
-                        if "Низкое" in value:
-                            value = value.replace("Низкое", "🟠Низкое")
-                        pokazatel_504p_lines.append(value)
+            if pokazatel_504p_values is not None and not pokazatel_504p_values.empty:
+                pokazatel_504p_lines = []
+
+                for i in range(10, 14):
+                    if i < len(pokazatel_504p_values.columns):
+                        value = pokazatel_504p_values.iloc[0, i]
+                        if pd.notna(value) and value.strip():
+                            if "Хорошее" in value:
+                                value = value.replace("Хорошее", "🟢Хорошее")
+                            if "Низкое" in value:
+                                value = value.replace("Низкое", "🟠Низкое")
+                            pokazatel_504p_lines.append(value)
+
+                # Выводим обработанные строки для проверки
+                print(pokazatel_504p_lines)
             if ucn2_values:
                 for row in ucn2_values:
                     ucn2_response = ''
@@ -621,9 +630,9 @@ async def handle_text(message: Message, state: FSMContext):
                     text=f"Пройти опрос", callback_data='start_survey')]
             ])
             survey_builder.attach(InlineKeyboardBuilder.from_markup(markup))
-            response += f'⠀'
-            response += f'Узнать о проектах министерства /development'
-            await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup())
+            
+            response += f'\nУзнать о проектах министерства \n/development'
+            await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup(), message_effect_id='5046509860389126442')
 
             # if message.from_user.id in allowed_users:
             # button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", callback_data=json.dumps({"type": "digital_ministry_info", "chat_id": message.chat.id}))
@@ -748,6 +757,7 @@ async def handle_select_number(message: Message, state: FSMContext):
 
         index_text = message.text
 
+
         user_first_name = message.from_user.first_name
         chat_id = message.chat.id
         response = ''
@@ -766,6 +776,7 @@ async def handle_select_number(message: Message, state: FSMContext):
             return
 
         index = int(index_text)
+        
 
         if index <= 0 or index > len(found_values):
             await bot.send_message(chat_id, f'Введено некорректное значение. Пожалуйста, введите число в диапазоне от 1 до {len(found_values)}.')
@@ -782,7 +793,7 @@ async def handle_select_number(message: Message, state: FSMContext):
             yandex_2023_task = tg.create_task(
                 search_yandex_2023_values(selected_np[4], redis))
             pokazatel_504p_task = tg.create_task(
-                search_in_pokazatel_504p(selected_np[4], redis))
+                search_in_pokazatel_504p(selected_np[4]))
             ucn2_task = tg.create_task(search_in_ucn2(selected_np[4], redis))
             survey_results_task = tg.create_task(
                 search_survey_results(np=selected_np[4]))
@@ -861,13 +872,21 @@ async def handle_select_number(message: Message, state: FSMContext):
             for row in yandex_2023_values:
                 yandex_2023_response += f'Тип подключения: {row[4]}\nОператор: {row[15]}\nСоглашение: {row[7]}\nПодписание соглашения с МЦР: {row[8]}\nПодписание соглашения с АГЗ: {row[9]}\nДата подписания контракта: {row[11]}\nДата установки АМС: {row[12]}\nДата монтажа БС: {row[13]}\nЗапуск услуг: {row[14]}\n\n'
 
-        if len(pokazatel_504p_values) > 0:
-            for i in range(6, 10):
-                if len(pokazatel_504p_values[0]) > i and pokazatel_504p_values[0][i] and pokazatel_504p_values[0][i].strip():
-                    value = pokazatel_504p_values[0][i]
-                    value = value.replace("Хорошее", "🟢Хорошее").replace(
-                        "Низкое", "🟠Низкое")
-                    pokazatel_504p_lines.append(f"{value}")
+        if pokazatel_504p_values is not None and not pokazatel_504p_values.empty:
+            
+
+            for i in range(10, 14):
+                if i < len(pokazatel_504p_values.columns):
+                    value = pokazatel_504p_values.iloc[0, i]
+                    if pd.notna(value) and value.strip():
+                        if "Хорошее" in value:
+                            value = value.replace("Хорошее", "🟢Хорошее")
+                        if "Низкое" in value:
+                            value = value.replace("Низкое", "🟠Низкое")
+                        pokazatel_504p_lines.append(value)
+
+            # Выводим обработанные строки для проверки
+            print(pokazatel_504p_lines)
 
         pokazatel_504p_response = "\n".join(
             pokazatel_504p_lines) if pokazatel_504p_lines else "🔴отсутствует"
@@ -924,7 +943,7 @@ async def handle_select_number(message: Message, state: FSMContext):
             )
         except Exception as e:
             print(f"Произошла ошибка: {e}")
-
+        
         response = f'<b>{await get_value(found_values[index - 1], 1)}</b>'
 
         if selsovet_info:
@@ -970,9 +989,9 @@ async def handle_select_number(message: Message, state: FSMContext):
                 text=f"Пройти опрос", callback_data='start_survey')]
         ])
         survey_builder.attach(InlineKeyboardBuilder.from_markup(markup))
-        response += f'⠀'
-        response += f'Узнать о проектах министерства /development'
-        await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup())
+        
+        response += f'\nУзнать о проектах министерства \n/development'
+        await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup(), message_effect_id='5046509860389126442')
 
         builder_2 = InlineKeyboardBuilder()
 

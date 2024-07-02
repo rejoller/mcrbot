@@ -175,7 +175,7 @@ async def load_pokazatel_504p_values(spreadsheet, redis):
     except Exception as e:
         print("An error occurred during loading 504-п values:", e)
 
-
+'''
 async def search_in_pokazatel_504p(query, redis):
     try:
         query_lower = query.lower()
@@ -192,6 +192,21 @@ async def search_in_pokazatel_504p(query, redis):
     except Exception as e:
         print(f"Произошла ошибка при поиске значений 504-п в Redis:", e)
         return None
+'''
+
+async def search_in_pokazatel_504p(query):
+    try:
+        df = pd.read_excel('subsidies/субсидии.xlsx', sheet_name='показатель 504-п')
+        
+        result_504p = df.query(f'ключ == {query}')
+        ic(result_504p)
+        return result_504p
+
+
+    except Exception as e:
+        print(f"Произошла ошибка при поиске значений 504-п в Redis:", e)
+        return None
+
 
 
 async def load_ucn2_values(spreadsheet, redis):
