@@ -238,16 +238,20 @@ async def handle_subsidies_query(query: types.CallbackQuery, state: FSMContext):
     await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
     await state.clear()
     await query.message.answer(f'Вы в главном меню. \nВведите название населенного пункта, чтобы получить '
-                               'информацию о качестве связи или пройти опрос\n\n**Также есть команды:** \n/otpusk - узнать кто в отпуске\n'
+                               'информацию о качестве связи или пройти опрос\n\n**Также есть команды:** \n'
                                '/development - информация о проектах министерства', parse_mode='Markdown')
 
 
 @main_router.message(Command('help'))
 async def handle_help(message: types.Message, state: FSMContext):
     await state.clear()
-    await message.answer(f'\nВведите название населенного пункта, чтобы получить '
-                               'информацию о качестве связи или пройти опрос\n\n**Также есть команды:** \n/otpusk - узнать кто в отпуске\n'
-                               '/development - информация о проектах министерства', parse_mode='Markdown')
+    text = ('Введите название населенного пункта, чтобы получить '
+                               'информацию об уровне сигнала и качестве связи или пройти опрос\n\n**Также есть команды:** \n'
+                               '/development - информация о проектах министерства', 
+                               'Если есть вопросы - звоните (391) 273-05-07 Татьяна\n'
+                               'или (391) 263-17-67 доб. 392 Мария')
+    
+    await message.answer(text=text, parse_mode='Markdown')
 
 
 @main_router.message(Command('bi'))
@@ -301,18 +305,14 @@ async def handle_otpusk_command(message: types.Message, days_ahead=14):
 @main_router.message(CommandStart())
 async def handle_start(message: Message, state: FSMContext):
     await state.clear()
-
-    user_first_name = message.from_user.first_name
-    await message.answer(
-        f'Я бот министерства цифрового развития Красноярского края!'
-        '\n Введи наименование любого населенного пункта края, '
-
-        'чтобы получить информацию о связи в нем или оставить обратную связь о качестве услуг\n\n'
-        'Также есть команды: /otpusk - узнать кто в отпуске\n'
-                               '/development - информация о проектах министерства'
-        )
+    text = ('Я бот министерства цифрового развития Красноярского края!'
+            'Введите название населенного пункта, чтобы получить '
+                'информацию об уровне сигнала и качестве связи или пройти опрос\n'
+                '/development - информация о проектах министерства\n\n', 
+                'Если есть вопросы - звоните (391) 273-05-07 Татьяна\n'
+                'или (391) 263-17-67 доб. 392 Мария')
+    await message.answer(text=text)
     
-    await state.clear()
     
 
 
@@ -1150,8 +1150,6 @@ async def show_user_data(query: types.CallbackQuery, state: FSMContext):
         response_text = (
             f"<b>{survey_results['first_name']} {survey_results['last_name']}</b>\n\n"
             f"Никнейм: @{survey_results['username']}\n"
-            f"Телефон: {survey_results['contact']}\n"
-
             f"Tele2: {survey_results['tele2_level']} {survey_results['tele2_quality']}\n"
             f"МТС: {survey_results['mts_level']} {survey_results['mts_quality']}\n"
             f"Мегафон: {survey_results['megafon_level']} {survey_results['megafon_quality']}\n"
