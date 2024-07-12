@@ -28,4 +28,8 @@ subsidies/
 VOLS/
 mytable.png
 *.xslsx
+/myvenv3.11.9/*
+/otpusk/*
+/VOLS/*
+.vscode/
 
