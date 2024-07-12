@@ -241,17 +241,22 @@ async def handle_subsidies_query(query: types.CallbackQuery, state: FSMContext):
                                'информацию о качестве связи или пройти опрос\n\n**Также есть команды:** \n'
                                '/development - информация о проектах министерства', parse_mode='Markdown')
 
-
 @main_router.message(Command('help'))
 async def handle_help(message: types.Message, state: FSMContext):
     await state.clear()
-    text = ('Введите название населенного пункта, чтобы получить '
-                               'информацию об уровне сигнала и качестве связи или пройти опрос\n\n**Также есть команды:** \n'
-                               '/development - информация о проектах министерства', 
-                               'Если есть вопросы - звоните (391) 273-05-07 Татьяна\n'
-                               'или (391) 263-17-67 доб. 392 Мария')
-    
+
+    text_lines = [
+        'Введите название населенного пункта, чтобы получить '
+        'информацию об уровне сигнала и качестве связи или пройти опрос\n\n',
+        '/development - информация о проектах министерства\n\n',
+        'Если есть вопросы - звоните \n(391) 273-05-07 Татьяна\n',
+        'или (391) 263-17-67 доб. 392 Мария'
+    ]
+    text = "".join(text_lines)
+
     await message.answer(text=text, parse_mode='Markdown')
+
+
 
 
 @main_router.message(Command('bi'))
@@ -305,12 +310,9 @@ async def handle_otpusk_command(message: types.Message, days_ahead=14):
 @main_router.message(CommandStart())
 async def handle_start(message: Message, state: FSMContext):
     await state.clear()
-    text = ('Я бот министерства цифрового развития Красноярского края!'
+    text = ('Я бот министерства цифрового развития Красноярского края!\n'
             'Введите название населенного пункта, чтобы получить '
-                'информацию об уровне сигнала и качестве связи или пройти опрос\n'
-                '/development - информация о проектах министерства\n\n', 
-                'Если есть вопросы - звоните (391) 273-05-07 Татьяна\n'
-                'или (391) 263-17-67 доб. 392 Мария')
+                'информацию об уровне сигнала и качестве связи или пройти опрос')
     await message.answer(text=text)
     
     
@@ -627,7 +629,7 @@ async def handle_text(message: Message, state: FSMContext):
             survey_builder = InlineKeyboardBuilder()
             markup = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(
-                    text=f"Пройти опрос", callback_data='start_survey')]
+                    text=f"Оставить обратную связь", callback_data='start_survey')]
             ])
             survey_builder.attach(InlineKeyboardBuilder.from_markup(markup))
             
@@ -986,7 +988,7 @@ async def handle_select_number(message: Message, state: FSMContext):
         survey_builder = InlineKeyboardBuilder()
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(
-                text=f"Пройти опрос", callback_data='start_survey')]
+                text=f"Оставить обратную связь", callback_data='start_survey')]
         ])
         survey_builder.attach(InlineKeyboardBuilder.from_markup(markup))
         
