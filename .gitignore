@@ -27,7 +27,7 @@ images.py
 subsidies/
 VOLS/
 mytable.png
-*.xslsx
+*.xlsx
 /myvenv3.11.9/*
 /otpusk/*
 /VOLS/*
