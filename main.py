@@ -85,7 +85,7 @@ async def main():
     # Первый запуск on_startup при старте бота
     await on_startup()
     print('Бот запущен и готов к приему сообщений')
-
+    await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types(), skip_updates=True)
 
 if __name__ == "__main__":
