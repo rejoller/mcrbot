@@ -238,8 +238,7 @@ async def handle_subsidies_query(query: types.CallbackQuery, state: FSMContext):
     await bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
     await state.clear()
     await query.message.answer(f'Вы в главном меню. \nВведите название населенного пункта, чтобы получить '
-                               'информацию о качестве связи или пройти опрос\n\n**Также есть команды:** \n'
-                               '/development - информация о проектах министерства', parse_mode='Markdown')
+                               'информацию о качестве связи или пройти опрос\n\n**Также есть команды:** \n', parse_mode='Markdown')
 
 @main_router.message(Command('help'))
 async def handle_help(message: types.Message, state: FSMContext):
@@ -247,10 +246,7 @@ async def handle_help(message: types.Message, state: FSMContext):
 
     text_lines = [
         'Введите название населенного пункта, чтобы получить '
-        'информацию об уровне сигнала и качестве связи или пройти опрос\n\n',
-        '/development - информация о проектах министерства\n\n',
-        'Если есть вопросы - звоните \n(391) 273-05-07 Татьяна\n',
-        'или (391) 263-17-67 доб. 392 Мария'
+        'информацию об уровне сигнала и качестве связи или пройти опрос\n\n'
     ]
     text = "".join(text_lines)
 
@@ -607,7 +603,7 @@ async def handle_text(message: Message, state: FSMContext):
             if taksofony_info:
                 response += f'\n☎️таксофон: {taksofony_info}'
 
-            response += f'\n🌐интернет: {internet_info}️'
+            #response += f'\n🌐интернет: {internet_info}️'
             if tv:
                 response += f'\n📺телевидение: {tv}\n'
             response += f'⠀'
@@ -633,7 +629,7 @@ async def handle_text(message: Message, state: FSMContext):
             ])
             survey_builder.attach(InlineKeyboardBuilder.from_markup(markup))
             
-            response += f'\nУзнать о проектах министерства \n/development'
+            #response += f'\nУзнать о проектах министерства \n/development'
             await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup(), message_effect_id='5046509860389126442')
 
             # if message.from_user.id in allowed_users:
@@ -649,7 +645,7 @@ async def handle_text(message: Message, state: FSMContext):
 
             builder = InlineKeyboardBuilder()
             survey_data_storage[message.chat.id] = survey_results_values
-
+            '''
             if survey_results_values:
 
                 callback_data = json.dumps(
@@ -660,7 +656,7 @@ async def handle_text(message: Message, state: FSMContext):
                         text=f"Показать результаты опроса ({len(survey_results_values)})", callback_data=callback_data)]
                 ])
                 builder.attach(InlineKeyboardBuilder.from_markup(markup))
-
+            '''
             if szoreg_values:
                 szoreg_response = '🏢<b>Учреждения, подключенные по госпрограмме</b>\n\n'
                 for i, row in enumerate(szoreg_values, 1):
@@ -958,7 +954,7 @@ async def handle_select_number(message: Message, state: FSMContext):
         if taksofony_info:
             response += f'\n☎️таксофон: {taksofony_info}'
 
-        response += f'\n🌐интернет: {internet_info}️'
+       # response += f'\n🌐интернет: {internet_info}️'
         if tv:
             response += f'\n📺телевидение: {tv}\n'
         response += f'⠀'
@@ -992,11 +988,11 @@ async def handle_select_number(message: Message, state: FSMContext):
         ])
         survey_builder.attach(InlineKeyboardBuilder.from_markup(markup))
         
-        response += f'\nУзнать о проектах министерства \n/development'
+        #response += f'\nУзнать о проектах министерства \n/development'
         await bot.send_message(message.chat.id, response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=survey_builder.as_markup(), message_effect_id='5046509860389126442')
 
         builder_2 = InlineKeyboardBuilder()
-
+        '''
         if survey_results_values:
             survey_data_storage[message.chat.id] = survey_results_values
             markup = InlineKeyboardMarkup(inline_keyboard=[
@@ -1005,7 +1001,7 @@ async def handle_select_number(message: Message, state: FSMContext):
             ])
             builder_2.attach(InlineKeyboardBuilder.from_markup(markup))
 
-        '''
+        
         if message.from_user.id in allowed_users:
             button_digital_ministry_info = types.InlineKeyboardButton("😈Подготовить ответ на обращение(БЕТА)", callback_data=json.dumps({"type": "digital_ministry_info", "chat_id": message.chat.id}))
             inline_keyboard.add(button_digital_ministry_info)
