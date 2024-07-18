@@ -142,26 +142,6 @@ async def handle_development(message: types.Message, state: FSMContext):
     await message.answer_photo(photo=tower, caption=f'Вы находитесь в меню реализации проектов.\n'
                                'Выберите проект или можете выйти в главное меню', reply_markup=markup)
     
-
-
-
-@main_router.message(F.text.contains('татистик'))
-@main_router.message(Command('show_statistics'))
-async def show_statistics(message: Message):
-    await log_user_data_from_message(message)
-    column_names = ['Timestamp', 'User ID', 'First Name', 'Last Name', 'username', 'Message']
-
-
-    df = pd.read_csv('users_data.csv', names=column_names, header=0)
-
-    df['Timestamp'] = pd.to_datetime(df['Timestamp'], errors='coerce') 
-    df['Timestamp'] = df['Timestamp'] + pd.to_timedelta(7, unit='h')
-
-    df = df[['Timestamp', 'User ID', 'First Name', 'Last Name', 'Message']].tail(100).reset_index(drop=True) 
-    df.to_excel('статистика.xlsx', header= True, index=False)
-    await message.answer_document(document = types.FSInputFile('статистика.xlsx'), caption='Последние 100 сообщений, отправленные боту')
-
-
 @functools.lru_cache(maxsize=10)
 @main_router.callback_query(F.data.contains("subsidies"), StateFilter(Form.development))
 async def handle_subsidies_query(query: types.CallbackQuery, state: FSMContext):
@@ -437,7 +417,8 @@ async def handle_text(message: Message, state: FSMContext):
                 [f'`{match}`' for match in first_match])
             await bot.send_message(message.chat.id, f'Проверьте правильность написания и попробуйте еще раз. Возможно вы имели в виду:\n(нажмите на населенный пункт, чтобы скопировать)\n\n{formatted_matches}', parse_mode='Markdown')
         else:
-            await bot.send_message(message.chat.id, 'Не удалось найти информацию по данному запросу.\nВведите только наименование населенного пункта')
+            await bot.send_message(message.chat.id, 'Не удалось найти информацию по данному запросу.\nПроверьте, правильно ли введено название населенного пункта и попробуйте еще раз')
+
         return
 
     allowed_users = {1}
