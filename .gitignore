@@ -33,4 +33,6 @@ mytable.png
 /VOLS/*
 .vscode/
 *.txt
+.idea/
+data_sources/credentials.json
 
