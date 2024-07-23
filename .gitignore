@@ -35,4 +35,4 @@ mytable.png
 *.txt
 .idea/
 data_sources/credentials.json
-
+*.ipynb

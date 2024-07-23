@@ -13,10 +13,6 @@ secret_path = Path('data_sources').resolve()
 gsheet_pandas.setup(credentials_dir=secret_path / 'credentials.json')
 
 
-schools_df = pd.from_gsheet(spreadsheet_id=SPREADSHEET_ID,
-                            sheet_name='Школы',
-                            range_name='!A:U')
-
 
 async def szoreg_saver(session: AsyncSession):
     szoreg_df = pd.from_gsheet(spreadsheet_id=SPREADSHEET_ID,
@@ -48,7 +44,7 @@ async def szoreg_saver(session: AsyncSession):
         add_db_query = insert(Espd).values(batch).on_conflict_do_nothing()
         await session.execute(add_db_query)
         await session.commit()
-
+        print('еспд загружены')
 
 async def city_saver(session: AsyncSession):
     cities_df = pd.from_gsheet(spreadsheet_id=SPREADSHEET_ID,
@@ -104,6 +100,7 @@ async def city_saver(session: AsyncSession):
         add_db_query = insert(Cities).values(batch).on_conflict_do_nothing()
         await session.execute(add_db_query)
         await session.commit()
+        print('основная загружена')
 
 
 
@@ -137,3 +134,4 @@ async def schools_saver(session: AsyncSession):
         add_db_query = insert(Schools).values(batch).on_conflict_do_nothing()
         await session.execute(add_db_query)
         await session.commit()
+        print('школы загружено')
