@@ -18,11 +18,10 @@ async def szoreg_saver(session: AsyncSession):
     szoreg_df = pd.from_gsheet(spreadsheet_id=SPREADSHEET_ID,
                                sheet_name='szoreg',
                                range_name='!A:L')
+    szoreg_df.fillna({'Изменение':''})
     szoreg_df['ключ'] = szoreg_df['ключ'].apply(
         lambda x: int(x) if pd.notnull(x) and x != '' else None)
-    
-    
-    szoreg_df.ffill(inplace=True)
+
     to_db_data = [
         {
             "city_id": int(row['ключ']) if not pd.isna(row['ключ']) else None,
@@ -37,7 +36,8 @@ async def szoreg_saver(session: AsyncSession):
         }
         for _, row in szoreg_df.iterrows()
     ]
-    BATCH_SIZE = 1000  
+
+    BATCH_SIZE = 2000 
 
     for i in range(0, len(to_db_data), BATCH_SIZE):
         batch = to_db_data[i:i + BATCH_SIZE]
@@ -66,7 +66,7 @@ async def city_saver(session: AsyncSession):
         lambda x: int(x) if pd.notnull(x) and x != '' else None)
     
     
-    cities_df.ffill(inplace=True)
+    cities_df.fillna('')
     to_db_data = [
         {
             "city_id": int(row['ключ']),
@@ -108,7 +108,7 @@ async def schools_saver(session: AsyncSession):
     schools_df = pd.from_gsheet(spreadsheet_id=SPREADSHEET_ID,
                             sheet_name='Школы',
                             range_name='!A:U')
-    schools_df.ffill(inplace=True)
+    schools_df.fillna('')
     schools_df['Широта'] = schools_df['Широта'].apply(lambda x: x.replace(',', '.') if ',' in x else None if '#' in x else x)
     schools_df['Долгота'] = schools_df['Долгота'].apply(lambda x: x.replace(',', '.') if ',' in x else None if '#' in x else x)
 

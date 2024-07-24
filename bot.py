@@ -31,7 +31,7 @@ async def on_startup():
 
     async with session_maker() as session:
         try:
-            #await drop_db()
+           # await drop_db()
             #await create_db()
             #await city_saver(session)
             #await szoreg_saver(session)
