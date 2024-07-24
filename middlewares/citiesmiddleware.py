@@ -12,8 +12,7 @@ class CitiesMiddleware(BaseMiddleware):
     def __init__(self, session_pool: async_sessionmaker, cities: List[str]):
         self.session_pool = session_pool
         self.cities = cities
-        ic(self.cities.head())
-    
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],

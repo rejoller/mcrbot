@@ -36,11 +36,11 @@ class Cities(Base):
     selsovet: Mapped[str] = mapped_column(String(255), nullable=True)
     city_name_from_gosuslugi: Mapped[str] = mapped_column(String(255), nullable=True)
     number_of_votes_ucn2023: Mapped[int] = mapped_column(INTEGER, nullable=True)
-    date_of_update_ucn2023: Mapped[str] = mapped_column(String(255))
+    date_of_update_ucn2023: Mapped[str] = mapped_column(String(255), nullable=True)
     rank_ucn2023: Mapped[int] = mapped_column(INTEGER, nullable=True)
     same_number_of_votes_ucn2023: Mapped[int] = mapped_column(INTEGER, nullable=True)
-    television: Mapped[str] = mapped_column(String(255))
-    radio: Mapped[str] = mapped_column(String(255))
+    television: Mapped[str] = mapped_column(String(255), nullable=True)
+    radio: Mapped[str] = mapped_column(String(255), nullable=True)
     
     
 class Espd(Base):
