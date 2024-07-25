@@ -16,9 +16,12 @@ from database.engine import create_db, session_maker, drop_db
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from handlers.start_command import main_router
 from handlers.city_searcher import city_router
+from handlers.waiting_for_number import waiting_of_number_router
 from logger.logging_config import setup_logging
 from logger.logging_middleware import LoggingMiddleware
 from middlewares.citiesmiddleware import CitiesMiddleware
+from callbacks.espd import espd_router
+from callbacks.schools import schools_router
 
 storage = RedisStorage.from_url("redis://localhost:6379/3")
 
@@ -50,12 +53,15 @@ async def main():
     dp = Dispatcher(storage=storage)
     dp.update.middleware(DataBaseSession(session_pool=session_maker))
     dp.message.middleware(LoggingMiddleware())
-    dp.update.middleware(CitiesMiddleware(session_pool=session_maker, cities=cities))
+    #dp.update.middleware(CitiesMiddleware(session_pool=session_maker, cities=cities))
     scheduler = AsyncIOScheduler(timezone=ZoneInfo("Asia/Krasnoyarsk"))
     scheduler.add_job(on_startup, 'interval', minutes=INTERVAL_MIN)
     scheduler.start()
     dp.include_router(main_router)
     dp.include_router(city_router)
+    dp.include_router(waiting_of_number_router)
+    dp.include_router(espd_router)
+    dp.include_router(schools_router)
     print('Бот запущен и готов к приему сообщений')
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types(), skip_updates=True)

@@ -11,4 +11,5 @@ main_router = Router()
 
 @main_router.message(CommandStart(), F.chat.type == 'private')
 async def handle_start(message: Message, state: FSMContext, session: AsyncSession):
+    await state.clear()
     await message.answer('тестовое сообщение')
