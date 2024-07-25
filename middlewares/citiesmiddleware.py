@@ -19,13 +19,7 @@ class CitiesMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: Dict[str, Any]
     ) -> Any:
-        ic(event.message.text)
-        matching_cities = self.cities[self.cities['city_short_name'] == event.message.text]
-
-        if not matching_cities.empty:
-            city_ids = matching_cities['city_id'].tolist()
-            ic(f"City found: {event.message.text}, IDs: {city_ids}")
-            async with self.session_pool() as session:
-                data['session'] = session
-                data['city_ids'] = city_ids
-                return await handler(event, data)
+        ic(event)
+        return await handler(event, data)
+            
+            

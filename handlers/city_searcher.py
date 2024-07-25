@@ -1,105 +1,92 @@
-from aiogram.types import Message
-from aiogram import Router, F
+import traceback
+from aiogram.types import Message, CallbackQuery, TelegramObject
+from aiogram import Router, F, types
 from aiogram.fsm.context import FSMContext
 import pandas as pd
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Dict, Any
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, or_
 from sqlalchemy.dialects.postgresql import insert
 from icecream import ic
 from database.models import Cities, Espd
-
+from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
+from aiogram.filters import StateFilter
+from users.user_states import Form
+from utils.response_manager import main_response_creator, espd_response_creator, schools_response_creator
 
 
 
 
 city_router = Router()
 
-@city_router.message(F.chat.type == 'private')
-async def handle_city_search(message: Message, state: FSMContext, session: AsyncSession, city_ids: List[int]):
-    
 
-    cities_query = select(Cities.city_full_name, Cities.selsovet, Cities.population_2010, Cities.population_2020,
-                            Cities.television, Cities.beeline_level, Cities.beeline_quality, Cities.megafon_level,
-                            Cities.megafon_quality, Cities.mts_level, Cities.mts_quality, Cities.tele2_level, Cities.tele2_quality,
-                            Cities.taksophone_address, Cities.subsid_operator, Cities.subsid_year, Cities.date_of_update_ucn2023,
-                            Cities.rank_ucn2023, Cities.number_of_votes_ucn2023, Cities.same_number_of_votes_ucn2023,
-                            Cities.latitude, Cities.longitude, Cities.internet, Cities.arctic_zone)  \
-                    .where(Cities.city_id.in_(city_ids))
-        
-    cities_result = await session.execute(cities_query)
-    response_cities = cities_result.all()
-    main_df = pd.DataFrame(response_cities)
-    main_df = main_df.reset_index()
-    if not main_df.empty:
-        for i, row in main_df.iterrows():
-            row.fillna('')
-            main_response = f'<b>{row['city_full_name']}</b>\n'
-            if row['selsovet'] != None:
-                main_response += f'{row['selsovet']}\n\n'
-            if row['arctic_zone'] == True:
-                main_response += '❄️Арктическая зона❄️\n\n'   
-            main_response += f'👥население 2010 г: {row['population_2010']}\n'
-            main_response += f'👥население 2020 г: {row['population_2020']}\n'
-            if row['television'] != None:
-                main_response += f'телевидение: {row['television']}\n'
-            if row['taksophone_address'] != None:
-                main_response += f'таксофон: {row['taksophone_address']}\n'    
-            main_response += '\n<pre>'
-            main_response += '\n📱Сотовая связь:\n'
-            
-            if row['tele2_level'] != None:
-                main_response += f'Теле2: {row['tele2_level']} {row['tele2_quality']}\n'
-            
-            if row['mts_level'] != None:
-                main_response += f'МТС: {row['mts_level']} {row['mts_quality']}\n'
-                
-            if row['megafon_level'] != None:
-                main_response += f'Мегафон: {row['megafon_level']} {row['megafon_quality']}\n'
-                
-            if row['beeline_level'] != None:
-                main_response += f'Билайн: {row['beeline_level']} {row['beeline_quality']}\n'
-            
-            if row['tele2_level'] == None and row['mts_level'] == None and row['megafon_level'] == None and row['beeline_level'] == None:
-                main_response += 'Отсутствует\n'
-            main_response += '</pre>'
-            if row['subsid_operator'] != None:
-                main_response += (f'\n\nнаселенный пункт был подключен в рамках государственной программый "Развитие информационного общества"'
-                                f'в {row['subsid_year']} году, оператор {row['subsid_operator']}\n')
-                
-            if row['rank_ucn2023'] != None:
-                main_response += f'\n\n<b>Голосование УЦН 2024</b>\nhttps://www.gosuslugi.ru/inet\n\nколичество голосов: <b>{row['number_of_votes_ucn2023']} </b>'
-                main_response += f'(такое же количество\nголосов имеют {row['same_number_of_votes_ucn2023']} населенных пунктов)'
-                main_response += f'\n🏆Место в рейтинге {row['rank_ucn2023']}\n'   
-            
+
+
+
+
+
+@city_router.message(F.text, F.chat.type == 'private', StateFilter(None))
+async def handle_city_search(message: Message, state: FSMContext, session: AsyncSession):
+    print('основной хэнд')
+    cities = pd.read_json('cities.json')
+    choised_np = message.text
+    ic(choised_np)
+    np_ids = cities.query(f'city_short_name == "{choised_np}"')['city_id'].to_list()
+
+    
+    if len(np_ids) == 1:
+        await state.clear()
+        builder = InlineKeyboardBuilder()
+        main_response = await main_response_creator(session, city_id = int(np_ids[0]))
         await message.answer(text=main_response, parse_mode='HTML')
-    
-    
-    
-    ic(city_ids)
-    ic(city_ids[0])
-    espd_query = select(Espd.functional_customer, Espd.name_of_institution, Espd.addres, Espd.technology_type,
-                        Espd.internet_speed, Espd.contract, Espd.changes) \
-                    .where((Espd.city_id == city_ids[0]) & or_(Espd.changes != 'Исключение', Espd.changes.is_(None)))
-    ic(espd_query)            
-    espd_result = await session.execute(espd_query)
-    response_espd = espd_result.all()
-    espd_df = pd.DataFrame(response_espd)
-    espd_df = espd_df.reset_index()
-    espd_info = ''
-    if not espd_df.empty:
-        espd_info += '🏢Учреждения, подключенные по госпрограмме\n'
-        for i, row in espd_df.iterrows():
-            espd_info += f'{i+1}. <b>Тип:</b> {row['functional_customer']}\n<b>Наименование:</b> {row['name_of_institution']}\n'
-            espd_info += f'<b>Адрес:</b> {row['addres']}\n<b>Тип подключения:</b> {row['technology_type']}\n<b>Пропускная способность:</b>'
-            espd_info += f'{row['internet_speed']}\n<b>Контракт:</b> {row['contract']}'
-    ic(espd_info)     
-    
-            
+        
+        
+        espd_info= await espd_response_creator(session, city_id = int(np_ids[0]))
+        schools_info = await schools_response_creator(session, city_id = int(np_ids[0]))
+
+        if espd_info:
+            builder.button(
+                text="подключенные учреждения", callback_data=f'espd_data_{np_ids[0]}'
+            )
+        
+        if schools_info:
+            builder.button(
+                text="школы", callback_data=f'schools_data_{np_ids[0]}'
+            )
+        builder.adjust(1)   
+        keyboard = builder.as_markup()
+        if keyboard:
+            await message.answer('дополнительная информация', reply_markup=keyboard)
         
     
+    if len(np_ids) > 1:
+        await state.set_state(Form.waiting_number)
+        cities_query = select(Cities.city_full_name).where(Cities.city_id.in_(np_ids)).order_by(Cities.city_full_name)        
+        cities_result = await session.execute(cities_query)
+        response_cities = pd.DataFrame(cities_result.all())
+        ic(response_cities)
+        
+
+        builder = ReplyKeyboardBuilder()
+        button_text = ''
+        message_text = 'Найдено несколько населенных пунктов, выберите номер нужного❗️\n\n'
+        
+        list_of_lists = []
+        for index, (key, value) in enumerate(response_cities['city_full_name'].items(), start=1):
+            list_of_lists.append([key, np_ids[key], index])
+            button_text = f'{index}'
+            message_text += f'<b>{index}</b>. {value}\n'
+            builder.button(text=button_text)
+        await state.update_data(list_of_lists = list_of_lists)
+        builder.adjust(4)
+        keyboard_1 = builder.as_markup(resize_keyboard=True, one_time_keyboard=True, input_field_placeholder="Выберите населенный пункт")
+        await message.answer(text=message_text, reply_markup=keyboard_1, parse_mode='HTML')
+        return
+    if len(np_ids) < 1:
+        await message.answer(text='не найдено')
+        
     
     
     
