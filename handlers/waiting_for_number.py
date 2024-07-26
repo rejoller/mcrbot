@@ -47,7 +47,7 @@ async def handle_start_new_dialog(message: Message, state: FSMContext, session: 
         await state.clear()
         builder = InlineKeyboardBuilder()
         main_response = await main_response_creator(session, city_id = int(city_id))
-        await message.answer(text=main_response, parse_mode='HTML')
+        await message.answer(text=main_response, parse_mode='HTML', disable_web_page_preview=True)
         
         
         espd_info= await espd_response_creator(session, city_id = int(city_id))
@@ -66,7 +66,8 @@ async def handle_start_new_dialog(message: Message, state: FSMContext, session: 
             
         builder.adjust(1)
         keyboard = builder.as_markup()
-        if keyboard:
+        print(keyboard)
+        if keyboard.inline_keyboard:
             await message.answer('дополнительная информация', reply_markup=keyboard)
         
         

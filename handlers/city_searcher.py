@@ -24,7 +24,11 @@ city_router = Router()
 
 
 
-
+@city_router.message(F.animation)
+async def echo_gif(message: Message):
+    file_id = message.animation.file_id
+    print(file_id)
+    await message.answer(message.animation.file_id)
 
 
 @city_router.message(F.text, F.chat.type == 'private', StateFilter(None))
@@ -38,27 +42,34 @@ async def handle_city_search(message: Message, state: FSMContext, session: Async
     
     if len(np_ids) == 1:
         await state.clear()
-        builder = InlineKeyboardBuilder()
+        builder_1 = InlineKeyboardBuilder()
+        builder_2 = InlineKeyboardBuilder()
+        
+        builder_1.button(
+                text="Оставить обратную связь", callback_data=f'start_survey_{np_ids[0]}'
+            )
+        keyboard_1 = builder_1.as_markup()
+        
         main_response = await main_response_creator(session, city_id = int(np_ids[0]))
-        await message.answer(text=main_response, parse_mode='HTML')
+        await message.answer(text=main_response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=keyboard_1)
         
         
         espd_info= await espd_response_creator(session, city_id = int(np_ids[0]))
         schools_info = await schools_response_creator(session, city_id = int(np_ids[0]))
 
         if espd_info:
-            builder.button(
+            builder_2.button(
                 text="подключенные учреждения", callback_data=f'espd_data_{np_ids[0]}'
             )
         
         if schools_info:
-            builder.button(
+            builder_2.button(
                 text="школы", callback_data=f'schools_data_{np_ids[0]}'
             )
-        builder.adjust(1)   
-        keyboard = builder.as_markup()
-        if keyboard:
-            await message.answer('дополнительная информация', reply_markup=keyboard)
+        builder_2.adjust(1)   
+        keyboard_2 = builder_2.as_markup()
+        if keyboard_2.inline_keyboard:
+            await message.answer('дополнительная информация', reply_markup=keyboard_2)
         
     
     if len(np_ids) > 1:

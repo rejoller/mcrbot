@@ -25,11 +25,10 @@ async def main_response_creator(session: AsyncSession, city_id = None):
     response_cities = cities_result.all()
     main_df = pd.DataFrame(response_cities)
     main_df = main_df.reset_index()
-    ic(main_df)
+    main_response=''
     if not main_df.empty:
         for i, row in main_df.iterrows():
             row.fillna('')
-            ic(row['taksophone_address'])
             main_response = f'<b>{row['city_full_name']}</b>\n'
             if row['selsovet'] != None:
                 main_response += f'{row['selsovet']}\n\n'
@@ -59,9 +58,9 @@ async def main_response_creator(session: AsyncSession, city_id = None):
             if row['tele2_level'] == None and row['mts_level'] == None and row['megafon_level'] == None and row['beeline_level'] == None:
                 main_response += 'Отсутствует\n'
             main_response += '</pre>'
-            if row['subsid_operator'] != None:
+            if row['subsid_operator'] != 'None' and row['subsid_operator'] != '':
                 main_response += (f'\n\nнаселенный пункт был подключен в рамках государственной программый "Развитие информационного общества"'
-                                f'в {row['subsid_year']} году, оператор {row['subsid_operator']}\n')
+                                f'в {row['subsid_year']} году, оператор {row['subsid_operator']}\nhttp://digital.krskstate.ru/subsidiimo/page17877')
                 
             if row['rank_ucn2023'] != None:
                 main_response += f'\n\n<b>Голосование УЦН 2024</b>\nhttps://www.gosuslugi.ru/inet\n\nколичество голосов: <b>{row['number_of_votes_ucn2023']} </b>'
@@ -83,12 +82,13 @@ async def espd_response_creator(session: AsyncSession, city_id = None):
     espd_df = espd_df.reset_index()
     espd_info = ''
     if not espd_df.empty:
-        espd_info += '🏢Учреждения, подключенные по госпрограмме\n'
+        espd_info += '🏢Учреждения, подключенные по госпрограмме\n\n<blockquote expandable>'
         for i, row in espd_df.iterrows():
             i+=1
             espd_info += f'<blockquote>{i}. <b>Тип:</b> {row['functional_customer']}\n<b>Наименование:</b> {row['name_of_institution']}\n'
             espd_info += f'<b>Адрес:</b> {row['addres']}\n<b>Тип подключения:</b> {row['technology_type']}\n<b>Пропускная способность:</b>'
-            espd_info += f'{row['internet_speed']}\n<b>Контракт:</b> {row['contract']}</blockquote>\n\n'
+            espd_info += f'{row['internet_speed']}\n<b>Контракт:</b> {row['contract']}\n'
+            espd_info += f'</blockquote>'
         
     
     return espd_info
