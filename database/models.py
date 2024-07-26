@@ -74,12 +74,40 @@ class Schools(Base):
 class Users(Base):
     __tablename__ = 'users'
     user_id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
-    first_name: Mapped[str] = mapped_column(String(255))
-    last_name: Mapped[str] = mapped_column(String(255))
-    username: Mapped[str] = mapped_column(String(255))
+    first_name: Mapped[str] = mapped_column(String(255), nullable=True)
+    last_name: Mapped[str] = mapped_column(String(255), nullable=True)
+    username: Mapped[str] = mapped_column(String(255), nullable=True)
     joined_at: Mapped[DateTime] = mapped_column(TIMESTAMP)
     is_admin: Mapped[bool] = mapped_column(BOOLEAN)
-    msg_type: Mapped[int] = mapped_column(BIGINT)
+    phone_number: Mapped[str] = mapped_column(String(255))
+    latitude: Mapped[float] = mapped_column(FLOAT)
+    longitude: Mapped[float] = mapped_column(FLOAT)
+    
+    
+    
+class Survey(Base):
+    __tablename__ = 'survey'
+    survey_id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    city_id: Mapped[int] = mapped_column(INTEGER, ForeignKey('cities.city_id'))
+    user_id: Mapped[int] = mapped_column(BIGINT, ForeignKey('users.user_id'))
+    import_time: Mapped[DateTime] = mapped_column(TIMESTAMP)
+    provider: Mapped[str] = mapped_column(String(255))
+    level: Mapped[str] = mapped_column(String(255), nullable=True)
+    quality: Mapped[str] = mapped_column(String(255), nullable=True)
+
+    
+    
+class Messages(Base):
+    __tablename__ = 'messages'
+    message_id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BIGINT, ForeignKey('users.user_id'))
+    date_send: Mapped[DateTime] = mapped_column(TIMESTAMP)
+    message_text: Mapped[str] = mapped_column(String, nullable=True)
+    response_text: Mapped[str] = mapped_column(String, nullable=True)
+    
+    
+    
+
     
     
     
