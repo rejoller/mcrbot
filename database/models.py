@@ -79,9 +79,9 @@ class Users(Base):
     username: Mapped[str] = mapped_column(String(255), nullable=True)
     joined_at: Mapped[DateTime] = mapped_column(TIMESTAMP)
     is_admin: Mapped[bool] = mapped_column(BOOLEAN)
-    phone_number: Mapped[str] = mapped_column(String(255))
-    latitude: Mapped[float] = mapped_column(FLOAT)
-    longitude: Mapped[float] = mapped_column(FLOAT)
+    phone_number: Mapped[str] = mapped_column(String(255), nullable=True)
+    latitude: Mapped[float] = mapped_column(FLOAT, nullable=True)
+    longitude: Mapped[float] = mapped_column(FLOAT, nullable=True)
     
     
     
