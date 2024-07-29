@@ -13,10 +13,10 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from icecream import ic
 
 
-survey_mts = Router()
+router = Router()
 
-@survey_mts.callback_query(F.data.startswith("tele2_none_"))
-@survey_mts.callback_query(F.data.startswith("quality_tele2_"))
+@router.callback_query(F.data.startswith("tele2_none_"))
+@router.callback_query(F.data.startswith("quality_tele2_"))
 async def handle_mts_level(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
     print('mts')
     city = ''
@@ -42,10 +42,12 @@ async def handle_mts_level(query: types.CallbackQuery, state: FSMContext, sessio
         await session.commit()
         
     if len(splitted_data) == 3:
-        provider = 'mts'
+        provider = provider
         ic(provider)
         level = splitted_data[1]
+        ic(level)
         city = splitted_data[2]
+        ic(city)
         add_query = insert(Survey).values(
             city_id=int(city),
             user_id=int(user_id),
@@ -81,7 +83,7 @@ async def handle_mts_level(query: types.CallbackQuery, state: FSMContext, sessio
         reply_markup=markup)
 
 
-@survey_mts.callback_query(F.data.startswith("mts_"), F.data.not_contains("mts_none"))
+@router.callback_query(F.data.startswith("mts_"), F.data.not_contains("mts_none"))
 async def handle_mts_quality(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
     print('handle_mts_quality')
     user_id = query.from_user.id
@@ -119,8 +121,8 @@ async def handle_mts_quality(query: types.CallbackQuery, state: FSMContext, sess
                                    reply_markup=markup)
 
 
-@survey_mts.callback_query(F.data.contains("mts_none"))
-@survey_mts.callback_query(F.data.startswith("quality_mts_"), F.data.not_contains("mts_none"))
+@router.callback_query(F.data.contains("mts_none"))
+@router.callback_query(F.data.startswith("quality_mts_"), F.data.not_contains("mts_none"))
 async def handle_megafon_level(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
     print('handle_megafon_level')
     user_id = query.from_user.id

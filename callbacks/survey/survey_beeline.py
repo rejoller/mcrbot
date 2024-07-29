@@ -13,11 +13,11 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from icecream import ic
 
 
-survey_beeline = Router()
+router = Router()
 
 
 
-@survey_beeline.callback_query(F.data.startswith("beeline_"), F.data.not_startswith("beeline_"))
+@router.callback_query(F.data.startswith("beeline_"), F.data.not_contains("beeline_none"))
 async def handle_beeline_level(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
     print('handle_beeline_level')
     user_id = query.from_user.id
@@ -74,8 +74,8 @@ async def handle_beeline_level(query: types.CallbackQuery, state: FSMContext, se
                                    reply_markup=markup)
 
 
-@survey_beeline.callback_query(F.data.contains("beeline_none"))
-@survey_beeline.callback_query(F.data.startswith("quality_beeline_"))
+@router.callback_query(F.data.contains("beeline_none"))
+@router.callback_query(F.data.startswith("quality_beeline_"))
 async def handle_beeline_quality(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
     print('handle_beeline_quality')
     user_id = query.from_user.id

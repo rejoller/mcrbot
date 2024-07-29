@@ -19,14 +19,14 @@ from utils.response_manager import espd_response_creator, main_response_creator,
 
 
 
-waiting_of_number_router = Router()
+router = Router()
 
 
 
 
 
 
-@waiting_of_number_router.message(StateFilter(Form.waiting_number), F.text)
+@router.message(StateFilter(Form.waiting_number), F.text)
 async def handle_start_new_dialog(message: Message, state: FSMContext, session: AsyncSession):
     print("ожидание номера")
     data = await state.get_data()
@@ -45,30 +45,35 @@ async def handle_start_new_dialog(message: Message, state: FSMContext, session: 
 
     if city_id:
         await state.clear()
-        builder = InlineKeyboardBuilder()
+        builder_1= InlineKeyboardBuilder()
+        builder_2 = InlineKeyboardBuilder()
         main_response = await main_response_creator(session, city_id = int(city_id))
-        await message.answer(text=main_response, parse_mode='HTML', disable_web_page_preview=True)
+        builder_1.button(
+                text="Оставить обратную связь", callback_data=f'start_survey_{int(city_id)}'
+            )
+        keyboard_1 = builder_1.as_markup()
+        await message.answer(text='<b>Выбранный населенный пункт</b>', parse_mode='HTML', reply_markup=types.ReplyKeyboardRemove())
+        await message.answer(text=main_response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=keyboard_1)
         
         
         espd_info= await espd_response_creator(session, city_id = int(city_id))
         schools_info = await schools_response_creator(session, city_id = int(city_id))
 
         if espd_info:
-            builder.button(
+            builder_2.button(
                 text="подключенные учреждения", callback_data=f'espd_data_{int(city_id)}'
             )
         
         if schools_info:
-            builder.button(
+            builder_2.button(
                 text="школы", callback_data=f'schools_data_{int(city_id)}'
             )
             
             
-        builder.adjust(1)
-        keyboard = builder.as_markup()
-        print(keyboard)
-        if keyboard.inline_keyboard:
-            await message.answer('дополнительная информация', reply_markup=keyboard)
+        builder_2.adjust(1)
+        keyboard_2 = builder_2.as_markup()
+        if keyboard_2.inline_keyboard:
+            await message.answer('дополнительная информация', reply_markup=keyboard_2)
         
         
     

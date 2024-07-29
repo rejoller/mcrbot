@@ -13,14 +13,15 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from icecream import ic
 
 
-survey_megafon = Router()
+router = Router()
 
 
-@survey_megafon.callback_query(F.data.startswith("megafon_"), F.data.not_contains("megafon_none"))
+@router.callback_query(F.data.startswith("megafon_"), F.data.not_contains("megafon_none"))
 async def handle_megafon_level(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
     print('handle_megafon_level')
     user_id = query.from_user.id
     splitted_data = query.data.split('_')
+    city = ''
     
     
     if len(splitted_data) == 4:
@@ -40,7 +41,7 @@ async def handle_megafon_level(query: types.CallbackQuery, state: FSMContext, se
         await session.execute(update_query)
         await session.commit()
         
-    if len(splitted_data) == 2:
+    if len(splitted_data) == 3:
         provider = splitted_data[0]
         level = splitted_data[1]
         city = splitted_data[2]
@@ -74,8 +75,8 @@ async def handle_megafon_level(query: types.CallbackQuery, state: FSMContext, se
 
 
 
-@survey_megafon.callback_query(F.data.contains("megafon_none"))
-@survey_megafon.callback_query(F.data.startswith("quality_megafon_"))
+@router.callback_query(F.data.contains("megafon_none"))
+@router.callback_query(F.data.startswith("quality_megafon_"))
 async def handle_beeline_level(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
     print('handle_beeline_level')
     user_id = query.from_user.id
@@ -83,10 +84,12 @@ async def handle_beeline_level(query: types.CallbackQuery, state: FSMContext, se
     city = ''
     user_id = query.from_user.id
     splitted_data = query.data.split('_')
+    ic(splitted_data)
     if len(splitted_data) == 4:
         provider = query.data.split('_')[1]
         quality = query.data.split('_')[2]
         city = query.data.split('_')[3]
+        ic(city)
         update_query = (
             update(Survey)
             .where(and_(

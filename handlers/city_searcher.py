@@ -13,33 +13,46 @@ from icecream import ic
 from database.models import Cities, Espd
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.filters import StateFilter
+from users.user_manager import UserManager
 from users.user_states import Form
+from utils.input_manager import normalize_input
 from utils.response_manager import main_response_creator, espd_response_creator, schools_response_creator
+from cities import get_city_dict
+
+
+
+router = Router()
 
 
 
 
-city_router = Router()
-
-
-
-
-@city_router.message(F.animation)
+@router.message(F.animation)
 async def echo_gif(message: Message):
     file_id = message.animation.file_id
     print(file_id)
     await message.answer(message.animation.file_id)
 
 
-@city_router.message(F.text, F.chat.type == 'private', StateFilter(None))
+def find_keys_by_value(search_value):
+    city_dict = get_city_dict()
+    keys = [key for key, (normalized_value, _) in city_dict.items() if normalized_value == search_value]
+    #keys = [key for key, value in city_dict.items() if value == search_value]
+    return keys
+
+
+@router.message(F.text, F.chat.type == 'private', StateFilter(None))
 async def handle_city_search(message: Message, state: FSMContext, session: AsyncSession):
     print('основной хэнд')
-    cities = pd.read_json('cities.json')
-    choised_np = message.text
-    ic(choised_np)
-    np_ids = cities.query(f'city_short_name == "{choised_np}"')['city_id'].to_list()
+    user_manager = UserManager(session)
+    user_data = user_manager.extract_user_data_from_message(message)
+    await user_manager.add_user_if_not_exists(user_data)
 
-    
+    choised_np = normalize_input(message.text)
+    ic(choised_np)
+    np_ids = find_keys_by_value(choised_np)
+   # np_ids = cities.query(f'city_normalized_name == "{choised_np}"')['city_id'].to_list()
+    ic(np_ids)
+
     if len(np_ids) == 1:
         await state.clear()
         builder_1 = InlineKeyboardBuilder()

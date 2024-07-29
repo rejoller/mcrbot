@@ -12,11 +12,13 @@ from sqlalchemy import and_, select, update
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from icecream import ic
 
+from users.user_manager import UserManager
 
-survey_tele2 = Router()
+
+router = Router()
 
 
-@survey_tele2.callback_query(F.data.startswith("start_survey_"))
+@router.callback_query(F.data.startswith("start_survey_"))
 async def handle_start_survey(query: types.CallbackQuery, state: FSMContext, session: AsyncSession):
 
     city_id = query.data.split('_')[2]
@@ -35,37 +37,17 @@ async def handle_start_survey(query: types.CallbackQuery, state: FSMContext, ses
         reply_markup=markup)
 
 
-@survey_tele2.callback_query(F.data.startswith("tele2_"), F.data.not_contains("tele2_none_"))
+@router.callback_query(F.data.startswith("tele2_"), F.data.not_contains("tele2_none_"))
 async def handle_select_tele2_quality(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
     print('в теле2 качество')
-    ic(query.data)
+    user_manager = UserManager(session)
+    user_data = user_manager.extract_user_data_from_query(query)
+    await user_manager.add_user_if_not_exists(user_data)
+
     user_id = query.from_user.id
-    first_name = query.from_user.first_name
-    last_name = query.from_user.last_name
-    username = query.from_user.username
-
-    add_user_query = insert(Users).values(
-        user_id=int(user_id),
-        first_name=first_name,
-        last_name=last_name,
-        username=username,
-        joined_at=dt.now(),
-        is_admin=True if user_id == 964635576 else False
-    ).on_conflict_do_nothing()
-    await session.execute(add_user_query)
-    await session.commit()
-
-    
     provider = query.data.split('_')[0]
     level = query.data.split('_')[1]
     city = query.data.split('_')[2]
-
-
-    ic(provider)
-    ic(level)
-    ic(city)
-    
-    
     add_query = insert(Survey).values(
         city_id=int(city),
         user_id=int(user_id),

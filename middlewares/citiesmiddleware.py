@@ -5,7 +5,7 @@ from aiogram  import BaseMiddleware
 from sqlalchemy.ext.asyncio import async_sessionmaker
 import pandas as pd
 from icecream import ic
-
+from utils.input_manager import normalize_input
 
 
 class CitiesMiddleware(BaseMiddleware):
@@ -19,7 +19,8 @@ class CitiesMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: Dict[str, Any]
     ) -> Any:
-        ic(event)
+        if hasattr(event, 'text'):
+            event.text = normalize_input(event.text)
         return await handler(event, data)
             
             

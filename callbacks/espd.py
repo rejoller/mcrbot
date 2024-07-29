@@ -6,9 +6,9 @@ from icecream import ic
 from utils.message_splitter import split_message
 from utils.response_manager import espd_response_creator
 
-espd_router = Router()
+router = Router()
 
-@espd_router.callback_query(F.data.startswith('espd_data_'))
+@router.callback_query(F.data.startswith('espd_data_'))
 async def handle_waiting_for_choise(query: types.CallbackQuery, session: AsyncSession):
     print('еспд')
     city_id = query.data.split('_')[2]
