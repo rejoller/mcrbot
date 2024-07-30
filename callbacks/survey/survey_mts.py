@@ -20,10 +20,8 @@ router = Router()
 async def handle_mts_level(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
     print('mts')
     city = ''
-    ic(query.data)
     user_id = query.from_user.id
     splitted_data = query.data.split('_')
-    ic(splitted_data)
     if len(splitted_data) == 4:
         provider = splitted_data[1]
         quality = splitted_data[2]
@@ -37,17 +35,13 @@ async def handle_mts_level(query: types.CallbackQuery, state: FSMContext, sessio
             ))
             .values(quality=quality)
         )
-
         await session.execute(update_query)
         await session.commit()
         
     if len(splitted_data) == 3:
         provider = provider
-        ic(provider)
         level = splitted_data[1]
-        ic(level)
         city = splitted_data[2]
-        ic(city)
         add_query = insert(Survey).values(
             city_id=int(city),
             user_id=int(user_id),
@@ -56,12 +50,7 @@ async def handle_mts_level(query: types.CallbackQuery, state: FSMContext, sessio
             level=level
         ).on_conflict_do_nothing()
         await session.execute(add_query)
-        await session.commit()
-    
-    
-    
-
-    
+        await session.commit()    
 
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="4G", callback_data=f"mts_4g_{city}"),
@@ -72,9 +61,7 @@ async def handle_mts_level(query: types.CallbackQuery, state: FSMContext, sessio
     ])
 
     message_id = query.message.message_id
-    ic(message_id)
     if message_id:
-
         await bot.delete_message(chat_id=query.message.chat.id, message_id=message_id)
 
     await query.message.answer_animation(
@@ -85,15 +72,10 @@ async def handle_mts_level(query: types.CallbackQuery, state: FSMContext, sessio
 
 @router.callback_query(F.data.startswith("mts_"), F.data.not_contains("mts_none"))
 async def handle_mts_quality(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
-    print('handle_mts_quality')
     user_id = query.from_user.id
     provider = query.data.split('_')[0]
     level = query.data.split('_')[1]
     city = query.data.split('_')[2]
-    ic(provider)
-    ic(level)
-    ic(city)
-
     add_query = insert(Survey).values(
         city_id=int(city),
         user_id=int(user_id),
@@ -124,9 +106,7 @@ async def handle_mts_quality(query: types.CallbackQuery, state: FSMContext, sess
 @router.callback_query(F.data.contains("mts_none"))
 @router.callback_query(F.data.startswith("quality_mts_"), F.data.not_contains("mts_none"))
 async def handle_megafon_level(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
-    print('handle_megafon_level')
     user_id = query.from_user.id
-    ic(query.data)
     city = ''
     user_id = query.from_user.id
     splitted_data = query.data.split('_')
@@ -161,8 +141,6 @@ async def handle_megafon_level(query: types.CallbackQuery, state: FSMContext, se
         await session.execute(add_query)
         await session.commit()
         
-        
-    ic(city)
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="4G", callback_data=f"megafon_4g_{city}"),
          InlineKeyboardButton(text="3G", callback_data=f"megafon_3g_{city}"),
@@ -172,9 +150,7 @@ async def handle_megafon_level(query: types.CallbackQuery, state: FSMContext, se
     ])
 
     message_id = query.message.message_id
-    ic(message_id)
     if message_id:
-
         await bot.delete_message(chat_id=query.message.chat.id, message_id=message_id)
 
     await query.message.answer_animation(

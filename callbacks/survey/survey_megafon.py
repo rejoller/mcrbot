@@ -18,12 +18,9 @@ router = Router()
 
 @router.callback_query(F.data.startswith("megafon_"), F.data.not_contains("megafon_none"))
 async def handle_megafon_level(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
-    print('handle_megafon_level')
     user_id = query.from_user.id
     splitted_data = query.data.split('_')
     city = ''
-    
-    
     if len(splitted_data) == 4:
         provider = splitted_data[1]
         quality = splitted_data[2]
@@ -78,18 +75,14 @@ async def handle_megafon_level(query: types.CallbackQuery, state: FSMContext, se
 @router.callback_query(F.data.contains("megafon_none"))
 @router.callback_query(F.data.startswith("quality_megafon_"))
 async def handle_beeline_level(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
-    print('handle_beeline_level')
     user_id = query.from_user.id
-    ic(query.data)
     city = ''
     user_id = query.from_user.id
     splitted_data = query.data.split('_')
-    ic(splitted_data)
     if len(splitted_data) == 4:
         provider = query.data.split('_')[1]
         quality = query.data.split('_')[2]
         city = query.data.split('_')[3]
-        ic(city)
         update_query = (
             update(Survey)
             .where(and_(
@@ -99,7 +92,6 @@ async def handle_beeline_level(query: types.CallbackQuery, state: FSMContext, se
             ))
             .values(quality=quality)
         )
-
         await session.execute(update_query)
         await session.commit()
         
@@ -126,9 +118,7 @@ async def handle_beeline_level(query: types.CallbackQuery, state: FSMContext, se
     ])
 
     message_id = query.message.message_id
-    ic(message_id)
     if message_id:
-
         await bot.delete_message(chat_id=query.message.chat.id, message_id=message_id)
 
     await query.message.answer_animation(
