@@ -47,3 +47,4 @@ async def handle_contact(message: types.Message, session: AsyncSession):
 
     await session.execute(update_query)
     await session.commit()
+    

@@ -1,12 +1,12 @@
 
-
-async def split_message(message, max_length=4096):
+from icecream import ic
+async def split_message(message, max_length=4080):
     if len(message) <= max_length:
         return [message]
 
     messages = []
     while len(message) > max_length:
-        split_index = message[:max_length].rfind('\n')
+        split_index = message[:max_length].rfind('\n\n')
         if split_index == -1:
             split_index = max_length
 
@@ -15,5 +15,4 @@ async def split_message(message, max_length=4096):
 
     if message:
         messages.append(message)
-
     return messages

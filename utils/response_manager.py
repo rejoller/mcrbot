@@ -82,16 +82,38 @@ async def espd_response_creator(session: AsyncSession, city_id = None):
     espd_df = espd_df.reset_index()
     espd_info = ''
     if not espd_df.empty:
-        espd_info += '🏢Учреждения, подключенные по госпрограмме\n\n<blockquote expandable>'
+        espd_info += '🏢Учреждения, подключенные по госпрограмме\n\n'
         for i, row in espd_df.iterrows():
             i+=1
             espd_info += f'<blockquote>{i}. <b>Тип:</b> {row['functional_customer']}\n<b>Наименование:</b> {row['name_of_institution']}\n'
             espd_info += f'<b>Адрес:</b> {row['addres']}\n<b>Тип подключения:</b> {row['technology_type']}\n<b>Пропускная способность:</b>'
-            espd_info += f'{row['internet_speed']}\n<b>Контракт:</b> {row['contract']}\n'
-            espd_info += f'</blockquote>'
+            espd_info += f'{row['internet_speed']}\n<b>Контракт:</b> {row['contract']}</blockquote>\n\n'
         
-    
     return espd_info
+
+
+
+async def espd_no_tags_response_creator(session: AsyncSession, city_id = None):
+
+    espd_query = select(Espd.functional_customer, Espd.name_of_institution, Espd.addres, Espd.technology_type,
+                        Espd.internet_speed, Espd.contract, Espd.changes) \
+                    .where((Espd.city_id == city_id) & or_(Espd.changes != 'Исключение', Espd.changes.is_(None)))
+
+    espd_result = await session.execute(espd_query)
+    response_espd = espd_result.all()
+    espd_df = pd.DataFrame(response_espd)
+    espd_df = espd_df.reset_index()
+    espd_info = ''
+    if not espd_df.empty:
+        espd_info += '🏢Учреждения, подключенные по госпрограмме\n\n'
+        for i, row in espd_df.iterrows():
+            i+=1
+            espd_info += f'{i}. <b>Тип:</b> {row['functional_customer']}\n<b>Наименование:</b> {row['name_of_institution']}\n'
+            espd_info += f'<b>Адрес:</b> {row['addres']}\n<b>Тип подключения:</b> {row['technology_type']}\n<b>Пропускная способность:</b>'
+            espd_info += f'{row['internet_speed']}\n<b>Контракт:</b> {row['contract']}\n\n'
+        
+    return espd_info
+
 
 
 async def schools_response_creator(session: AsyncSession, city_id = None):
