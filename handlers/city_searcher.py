@@ -1,25 +1,25 @@
-import traceback
-from aiogram.types import Message, CallbackQuery, TelegramObject
-from aiogram import Router, F, types
+from aiogram.types import Message
+from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
-import pandas as pd
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Dict, Any
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, or_
-from sqlalchemy.dialects.postgresql import insert
-from icecream import ic
-from database.models import Cities, Espd
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.filters import StateFilter
+
+import pandas as pd
+from fuzzywuzzy import process
+
+from database.models import Cities
+from cities import get_city_dict
 from users.user_manager import MessagesManager, UserManager
 from users.user_states import Form
 from utils.input_manager import normalize_input
 from utils.response_manager import main_response_creator, espd_response_creator, schools_response_creator
-from cities import get_city_dict
-from fuzzywuzzy import process
 
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+
+from icecream import ic
 
 router = Router()
 
@@ -27,7 +27,6 @@ router = Router()
 @router.message(F.animation)
 async def echo_gif(message: Message):
     file_id = message.animation.file_id
-    print(file_id)
     await message.answer(message.animation.file_id)
 
 
@@ -50,7 +49,9 @@ async def find_similar_cities(search_value, threshold=70):
 @router.message(F.text, F.chat.type == 'private', StateFilter(None))
 async def handle_city_search(message: Message, state: FSMContext, session: AsyncSession):
     user_manager = UserManager(session)
+    msg_manager = MessagesManager(session)
     user_data = user_manager.extract_user_data_from_message(message)
+    msg_data = msg_manager.extract_data_from_message(message)
     await user_manager.add_user_if_not_exists(user_data)
     choised_np = normalize_input(message.text)
     np_ids = await find_keys_by_value(choised_np)
@@ -66,13 +67,8 @@ async def handle_city_search(message: Message, state: FSMContext, session: Async
 
         main_response = await main_response_creator(session, city_id=int(np_ids[0]))
         
-        msg_manager = MessagesManager(session)
         
-        msg_data = msg_manager.extract_data_from_message(message)
-        ic(type(msg_data))
-        
-        
-        
+
         await message.answer(text=main_response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=keyboard_1)
         await msg_manager.add_message_if_not_exists(msg_data, main_response)
         espd_info = await espd_response_creator(session, city_id=int(np_ids[0]))
@@ -87,7 +83,7 @@ async def handle_city_search(message: Message, state: FSMContext, session: Async
             builder_2.button(
                 text="школы", callback_data=f'schools_data_{np_ids[0]}'
             )
-            
+
         builder_2.adjust(1)
         keyboard_2 = builder_2.as_markup()
         if keyboard_2.inline_keyboard:
@@ -112,9 +108,11 @@ async def handle_city_search(message: Message, state: FSMContext, session: Async
 
         await state.update_data(list_of_lists=list_of_lists)
         builder.adjust(4)
+        builder.button(text="Отмена")
         keyboard_1 = builder.as_markup(
-            resize_keyboard=True, one_time_keyboard=True, input_field_placeholder="Выберите населенный пункт")
+            resize_keyboard=True, one_time_keyboard=True, input_field_placeholder="Выберите необходимый номер")
         await message.answer(text=message_text, reply_markup=keyboard_1, parse_mode='HTML')
+        await msg_manager.add_message_if_not_exists(msg_data, message_text)
         return
     else:
         similar_cities = await find_similar_cities(choised_np)
@@ -128,5 +126,8 @@ async def handle_city_search(message: Message, state: FSMContext, session: Async
             keyboard_2 = builder.as_markup(
                 resize_keyboard=True, one_time_keyboard=True, input_field_placeholder="Выберите правильное наименование")
             await message.answer(text=message_text, reply_markup=keyboard_2, parse_mode='HTML')
+            await msg_manager.add_message_if_not_exists(msg_data, message_text)
         else:
-            await message.answer('Не удалось найти информацию по данному запросу.\nВведите только наименование населенного пункта')
+            message_text = 'Не удалось найти информацию по данному запросу.\nВведите только наименование населенного пункта'
+            await message.answer(message_text)
+            await msg_manager.add_message_if_not_exists(msg_data, message_text)

@@ -1,13 +1,14 @@
+import logging
 from aiogram import Router
 from aiogram.types import Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram import Router, F, types
+from aiogram import Router, F, types, Bot
 from aiogram.fsm.context import FSMContext
-from aiogram.filters import Command, CommandStart, StateFilter, CommandObject
-from aiogram.fsm.state import State, StatesGroup
-import pandas as pd
+from aiogram.filters import StateFilter
+
 
 from database.models import Cities
+from users.user_manager import MessagesManager
 from users.user_states import Form
 from icecream import ic
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,16 +22,39 @@ router = Router()
 
 
 @router.message(StateFilter(Form.waiting_number), F.text)
-async def handle_start_new_dialog(message: Message, state: FSMContext, session: AsyncSession):
+async def handle_start_new_dialog(message: Message, state: FSMContext, session: AsyncSession, bot: Bot):
     data = await state.get_data()
     many_cities = data.get('list_of_lists')
     selected_np = message.text
+    if selected_np == "Отмена":
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id -1)
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        except:
+            logging.exception('Не удалось удалить сообщение')
+        await message.answer('Поиск отменен.', reply_markup=types.ReplyKeyboardRemove())
+        await state.clear()
+        return
+    if not selected_np.isdigit():
+        await ('Введено некорректное значение. Пожалуйста, введите число.')
+        return
+    index = int(selected_np)
+    if index <= 0 or index > len(many_cities):
+        await message.answer(f'Введено некорректное значение. Пожалуйста, введите число в диапазоне от 1 до {len(many_cities)}.')
+        return
+    
     index_to_city = {index: key for _, key, index in many_cities}
     async def get_city_id_by_index(user_index):
         return index_to_city.get(user_index, "Индекс не найден")
     city_id = await get_city_id_by_index(int(selected_np))
 
     if city_id:
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id -1)
+            await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+        except:
+            logging.exception('Не удалось удалить сообщение')
+            
         await state.clear()
         builder_1= InlineKeyboardBuilder()
         builder_2 = InlineKeyboardBuilder()

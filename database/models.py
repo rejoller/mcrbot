@@ -107,6 +107,16 @@ class Messages(Base):
     
     
     
+class Vacation(Base):
+    __tablename__ = 'vacation'
+    vacation_id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    user_full_name: Mapped[str] = mapped_column(String(255))
+    date_start: Mapped[str] = mapped_column(TIMESTAMP)
+    date_finish: Mapped[DateTime] = mapped_column(String, nullable=True)
+    is_fired: Mapped[bool] = mapped_column(BOOLEAN)
+    
+    
+    
 
     
     
