@@ -19,7 +19,6 @@ router = Router()
 
 @router.callback_query(F.data.startswith("beeline_"), F.data.not_contains("beeline_none"))
 async def handle_beeline_level(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
-    print('handle_beeline_level')
     user_id = query.from_user.id
     splitted_data = query.data.split('_')
     if len(splitted_data) == 4:
@@ -40,13 +39,9 @@ async def handle_beeline_level(query: types.CallbackQuery, state: FSMContext, se
         await session.commit()
         
     if len(splitted_data) == 3:
-        ic(splitted_data)
         provider = splitted_data[0]
-        ic(provider)
         level = splitted_data[1]
-        ic(level)
         city = splitted_data[2]
-        ic(city)
         add_query = insert(Survey).values(
             city_id=int(city),
             user_id=int(user_id),
@@ -77,9 +72,7 @@ async def handle_beeline_level(query: types.CallbackQuery, state: FSMContext, se
 @router.callback_query(F.data.contains("beeline_none"))
 @router.callback_query(F.data.startswith("quality_beeline_"))
 async def handle_beeline_quality(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
-    print('handle_beeline_quality')
     user_id = query.from_user.id
-    ic(query.data)
     city = ''
     user_id = query.from_user.id
     splitted_data = query.data.split('_')
@@ -115,7 +108,6 @@ async def handle_beeline_quality(query: types.CallbackQuery, state: FSMContext, 
         await session.commit()
 
     message_id = query.message.message_id
-    ic(message_id)
     if message_id:
 
         await bot.delete_message(chat_id=query.message.chat.id, message_id=message_id)

@@ -17,31 +17,18 @@ from sqlalchemy.dialects.postgresql import insert
 from utils.response_manager import espd_response_creator, main_response_creator, schools_response_creator
 
 
-
-
 router = Router()
-
-
-
-
 
 
 @router.message(StateFilter(Form.waiting_number), F.text)
 async def handle_start_new_dialog(message: Message, state: FSMContext, session: AsyncSession):
-    print("ожидание номера")
     data = await state.get_data()
     many_cities = data.get('list_of_lists')
-    ic(many_cities)
-    
     selected_np = message.text
-    print(type(selected_np))
-    
     index_to_city = {index: key for _, key, index in many_cities}
     async def get_city_id_by_index(user_index):
         return index_to_city.get(user_index, "Индекс не найден")
-    
     city_id = await get_city_id_by_index(int(selected_np))
-    ic(type(city_id))
 
     if city_id:
         await state.clear()

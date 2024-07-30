@@ -39,7 +39,6 @@ async def handle_start_survey(query: types.CallbackQuery, state: FSMContext, ses
 
 @router.callback_query(F.data.startswith("tele2_"), F.data.not_contains("tele2_none_"))
 async def handle_select_tele2_quality(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
-    print('в теле2 качество')
     user_manager = UserManager(session)
     user_data = user_manager.extract_user_data_from_query(query)
     await user_manager.add_user_if_not_exists(user_data)
@@ -57,8 +56,7 @@ async def handle_select_tele2_quality(query: types.CallbackQuery, state: FSMCont
     ).on_conflict_do_nothing()
     await session.execute(add_query)
     await session.commit()
-
-
+    
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
             text="Низкое", callback_data=f"quality_tele2_low_{city}"),
