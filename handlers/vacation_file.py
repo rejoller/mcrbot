@@ -1,7 +1,7 @@
 from aiogram import F, Router, types, Bot
 import os
-from media_files.animations import vacation_file
-
+from media_files.animations import vacation_files
+import random
 router = Router()
 
 
@@ -17,5 +17,7 @@ async def contacts_handler(message: types.Message, bot: Bot):
         destination = os.path.join(os.getcwd(), directory, file_name)
         file_info = await bot.get_file(document.file_id)
         await bot.download_file(file_info.file_path, destination)
-        await message.answer_animation(caption=f'Файл с отпусками загружен.\nХорошего дня тебе, {user_name}😊',
-                                   animation=vacation_file)
+        await message.answer_animation(caption=f'Файл с отпусками загружен.\nХорошего дня тебе, '
+                                       f'{user_name}', animation=random.choice(vacation_files))
+    if "рафик" not in file_name:
+        await message.answer('Имя файла не подходит для сохранения')

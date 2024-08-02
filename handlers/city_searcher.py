@@ -1,5 +1,5 @@
 from aiogram.types import Message
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.filters import StateFilter
@@ -12,7 +12,7 @@ from cities import get_city_dict
 from users.user_manager import MessagesManager, UserManager
 from users.user_states import Form
 from utils.input_manager import normalize_input
-from utils.response_manager import main_response_creator, espd_response_creator, schools_response_creator
+from utils.response_manager import get_coordinates, main_response_creator, espd_response_creator, schools_response_creator
 
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,7 +47,7 @@ async def find_similar_cities(search_value, threshold=70):
 
 
 @router.message(F.text, F.chat.type == 'private', StateFilter(None))
-async def handle_city_search(message: Message, state: FSMContext, session: AsyncSession):
+async def handle_city_search(message: Message, state: FSMContext, session: AsyncSession, bot: Bot):
     user_manager = UserManager(session)
     msg_manager = MessagesManager(session)
     user_data = user_manager.extract_user_data_from_message(message)
@@ -58,6 +58,9 @@ async def handle_city_search(message: Message, state: FSMContext, session: Async
 
     if len(np_ids) == 1:
         await state.clear()
+        latitude, longitude = await get_coordinates(session, city_id=int(np_ids[0]))
+        main_response = await main_response_creator(session, city_id=int(np_ids[0]))
+        await bot.send_location(chat_id=message.from_user.id, latitude=latitude, longitude=longitude)
         builder_1 = InlineKeyboardBuilder()
         builder_2 = InlineKeyboardBuilder()
         builder_1.button(
@@ -65,23 +68,19 @@ async def handle_city_search(message: Message, state: FSMContext, session: Async
         )
         keyboard_1 = builder_1.as_markup()
 
-        main_response = await main_response_creator(session, city_id=int(np_ids[0]))
-        
-        
-
         await message.answer(text=main_response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=keyboard_1)
         await msg_manager.add_message_if_not_exists(msg_data, main_response)
-        espd_info = await espd_response_creator(session, city_id=int(np_ids[0]))
-        schools_info = await schools_response_creator(session, city_id=int(np_ids[0]))
+        espd_info, elements_number = await espd_response_creator(session, city_id=int(np_ids[0]))
+        schools_info, schools_elements_number = await schools_response_creator(session, city_id=int(np_ids[0]))
 
         if espd_info:
             builder_2.button(
-                text="подключенные учреждения", callback_data=f'espd_data_{np_ids[0]}'
+                text=f"🏢подключенные учреждения ({elements_number})", callback_data=f'espd_data_{np_ids[0]}'
             )
 
         if schools_info:
             builder_2.button(
-                text="школы", callback_data=f'schools_data_{np_ids[0]}'
+                text=f"🏫школы ({schools_elements_number})", callback_data=f'schools_data_{np_ids[0]}'
             )
 
         builder_2.adjust(1)
