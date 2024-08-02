@@ -20,7 +20,6 @@ async def load_vacation_data():
                               else 'Пятница' if x == 4
                               else 'Суббота' if x == 5
                               else 'Воскресенье' if x == 6 else '')
-
     date_pattern = re.compile(
         r'с (\d{2}\.\d{2}\.\d{4}) по (\d{2}\.\d{2}\.\d{4})')
 
@@ -49,9 +48,8 @@ async def load_vacation_data():
         return periods
 
     new_periods = []
-
     for _, row in df.iterrows():
         new_periods.extend(extract_periods(row))
-
     periods_df = pd.DataFrame(new_periods)
+    
     return periods_df

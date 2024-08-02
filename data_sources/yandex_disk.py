@@ -12,13 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import literal, update
 
 def exctract_signal_level(signal_info):
-    if signal_info !=  '\\xa0' and pd.notnull(signal_info):
-        
+    if signal_info !=  '\\xa0' and pd.notnull(signal_info):   
         signal_info = signal_info.replace('(', ' ').replace(')','').split(' ')
         if len(signal_info)>1:
             level = signal_info[1]
             return level
-        
     else:
         return None
     
@@ -28,8 +26,7 @@ def exctract_quality_level(signal_info):
         signal_info = signal_info.replace('(', ' ').replace(')','').split(' ')
         if len(signal_info)>1:
             quality = signal_info[2]
-            return quality
-        
+            return quality   
     else:
         return None
 

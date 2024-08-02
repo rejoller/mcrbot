@@ -26,25 +26,4 @@ async def handle_location(message: types.Message, session: AsyncSession):
     await session.execute(update_query)
     await session.commit()
 
-
-
-    
-@router.message(F.location)
-async def handle_contact(message: types.Message, session: AsyncSession):
-    
-    
-    user_id = message.from_user.id
-    contact_data = message.contact.phone_number
-    
-    await message.answer('спасибо😉')
-    update_query = (
-        update(Users)
-        .where(and_(
-            Users.user_id == user_id
-        ))
-        .values(phone_number=contact_data)
-    )
-
-    await session.execute(update_query)
-    await session.commit()
     

@@ -11,6 +11,29 @@ from aiogram.types import Message
 from icecream import ic
 
 
+
+
+
+
+
+async def get_coordinates(session: AsyncSession, city_id = None):
+
+    cities_query = select(Cities.latitude, Cities.longitude)  \
+                    .where(Cities.city_id ==city_id)
+        
+    cities_result = await session.execute(cities_query)
+    response_cities = cities_result.all()
+    coordinates = pd.DataFrame(response_cities).to_string()
+    latitude = coordinates.split()[3]
+    longitude = coordinates.split()[4]
+    
+    return latitude, longitude
+
+
+
+
+
+
 async def main_response_creator(session: AsyncSession, city_id = None):
 
     cities_query = select(Cities.city_full_name, Cities.selsovet, Cities.population_2010, Cities.population_2020,
@@ -29,35 +52,35 @@ async def main_response_creator(session: AsyncSession, city_id = None):
     if not main_df.empty:
         for i, row in main_df.iterrows():
             row.fillna('')
-            main_response = f'<b>{row["city_full_name"]}</b>\n'
-            if row['selsovet'] != None:
+            main_response = f'<b>{row["city_full_name"]}</b>\n\n'
+            if row['selsovet'] != '':
                 main_response += f'{row["selsovet"]}\n\n'
             if row['arctic_zone'] == True:
-                main_response += '❄️Арктическая зона❄️\n\n'   
+                main_response += '❄️Арктическая зона❄️\n\n'            
             main_response += f'👥население 2010 г: {row["population_2010"]}\n'
             main_response += f'👥население 2020 г: {row["population_2020"]}\n'
             if row['television'] != None:
-                main_response += f'телевидение: {row["television"]}\n'
+                main_response += f'📺телевидение: {row["television"]}\n'
             if row['taksophone_address'] != '':
-                main_response += f'таксофон: {row["taksophone_address"]}\n'    
+                main_response += f'☎️таксофон: {row["taksophone_address"]}\n'    
             main_response += '\n<pre>'
             main_response += '📱Сотовая связь:\n'
             
             if row['tele2_level'] != None:
-                main_response += f'Теле2: {row["tele2_level"]} {row["tele2_quality"]}\n'
+                main_response += f'Теле2: {row["tele2_level"]} {row["tele2_quality"].lower()}\n'
             
             if row['mts_level'] != None:
-                main_response += f'МТС: {row["mts_level"]} {row["mts_quality"]}\n'
+                main_response += f'МТС: {row["mts_level"]} {row["mts_quality"].lower()}\n'
                 
             if row['megafon_level'] != None:
-                main_response += f'Мегафон: {row["megafon_level"]} {row["megafon_quality"]}\n'
+                main_response += f'Мегафон: {row["megafon_level"]} {row["megafon_quality"].lower()}\n'
                 
             if row['beeline_level'] != None:
-                main_response += f'Билайн: {row["beeline_level"]} {row["beeline_quality"]}\n'
+                main_response += f'Билайн: {row["beeline_level"]} {row["beeline_quality"].lower()}\n'
             
             if row['tele2_level'] == None and row['mts_level'] == None and row['megafon_level'] == None and row['beeline_level'] == None:
                 main_response += 'Отсутствует\n'
-            main_response += '</pre>'
+            main_response += '</pre>\n'
             if row['subsid_operator'] != 'None' and row['subsid_operator'] != '':
                 main_response += (f'\n\nнаселенный пункт был подключен в рамках государственной программый "Развитие информационного общества"'
                                 f'в {row["subsid_year"]} году, оператор {row["subsid_operator"]}\nhttp://digital.krskstate.ru/subsidiimo/page17877')
@@ -80,16 +103,17 @@ async def espd_response_creator(session: AsyncSession, city_id = None):
     response_espd = espd_result.all()
     espd_df = pd.DataFrame(response_espd)
     espd_df = espd_df.reset_index()
+    elements_number = len(espd_df)
     espd_info = ''
     if not espd_df.empty:
         espd_info += '🏢Учреждения, подключенные по госпрограмме\n\n'
         for i, row in espd_df.iterrows():
             i+=1
             espd_info += f'<blockquote>{i}. <b>Тип:</b> {row["functional_customer"]}\n<b>Наименование:</b> {row["name_of_institution"]}\n'
-            espd_info += f'<b>Адрес:</b> {row["addres"]}\n<b>Тип подключения:</b> {row["technology_type"]}\n<b>Пропускная способность:</b>'
+            espd_info += f'<b>Адрес:</b> {row["addres"]}\n<b>Тип подключения:</b> {row["technology_type"]}\n<b>Пропускная способность: </b>'
             espd_info += f'{row["internet_speed"]}\n<b>Контракт:</b> {row["contract"]}</blockquote>\n\n'
         
-    return espd_info
+    return espd_info, elements_number
 
 
 
@@ -103,16 +127,17 @@ async def espd_no_tags_response_creator(session: AsyncSession, city_id = None):
     response_espd = espd_result.all()
     espd_df = pd.DataFrame(response_espd)
     espd_df = espd_df.reset_index()
+    elements_number = len(espd_df)
     espd_info = ''
     if not espd_df.empty:
         espd_info += '🏢Учреждения, подключенные по госпрограмме\n\n'
         for i, row in espd_df.iterrows():
             i+=1
             espd_info += f'{i}. <b>Тип:</b> {row["functional_customer"]}\n<b>Наименование:</b> {row["name_of_institution"]}\n'
-            espd_info += f'<b>Адрес:</b> {row["addres"]}\n<b>Тип подключения:</b> {row["technology_type"]}\n<b>Пропускная способность:</b>'
+            espd_info += f'<b>Адрес:</b> {row["addres"]}\n<b>Тип подключения:</b> {row["technology_type"]}\n<b>Пропускная способность: </b>'
             espd_info += f'{row["internet_speed"]}\n<b>Контракт:</b> {row["contract"]}\n\n'
         
-    return espd_info
+    return espd_info, elements_number
 
 
 
@@ -126,13 +151,13 @@ async def schools_response_creator(session: AsyncSession, city_id = None):
     schools_df = pd.DataFrame(response_schools)
     schools_df = schools_df.reset_index()
     schools_info = ''
+    schools_elements_number = len(schools_df)
     
     if not schools_df.empty:
         schools_info += '<b>Школы</b>:\n\n'
         for i, row in schools_df.iterrows():
             i += 1
-            schools_info += f'<blockquote><b>{i} {row["name_of_school"]}</b>\n\n{row["school_adress"]}\n\n'
+            schools_info += f'<blockquote>{i}.<b>{row["name_of_school"]}</b>\n{row["school_adress"]}\n'
             schools_info += f'{row["technology_type"]}, {row["internet_speed"]}</blockquote>\n\n'
         
-        
-    return schools_info
+    return schools_info, schools_elements_number

@@ -11,9 +11,8 @@ router = Router()
 
 @router.callback_query(F.data.startswith('espd_data_'))
 async def handle_waiting_for_choise(query: types.CallbackQuery, session: AsyncSession):
-    print('еспд')
     city_id = query.data.split('_')[2]
-    espd_info= await espd_response_creator(session, city_id = int(city_id))    
+    espd_info, elements_number= await espd_response_creator(session, city_id = int(city_id))    
     msg_parts = await split_message(espd_info)
     try:
         for part in msg_parts:
