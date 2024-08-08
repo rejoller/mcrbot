@@ -1,4 +1,4 @@
-host = "127.0.0.1"
+host = "localhost"
 user = "rejoller"
 port = 5432
 database = "mcrv2"

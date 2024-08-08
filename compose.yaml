@@ -1,0 +1,16 @@
+services:
+    postgres:
+      image: postgres:16
+      environment:
+        POSTGRES_DB: "mcrv2"
+        POSTGRES_USER: "rejoller"
+        POSTGRES_PASSWORD: "9205"
+      ports:
+        - "5432:5432"
+    redis:
+      image: redis:latest
+    bot:
+      image: 'mcrv2tgbot'
+      environment: 
+        REDIS_URL: redis://redis:6379/3
+      restart: "always"

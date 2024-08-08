@@ -83,6 +83,7 @@ async def city_saver(session: AsyncSession):
             "subsid_operator": row['оператор по субсидии'],
             "subsid_year": row['Субсидия Таня, год'],
             "selsovet": row['сельсовет'],
+            "city_name_from_gosuslugi": row['нп из госуслуг'],
             "number_of_votes_ucn2023": row['количество голосов']if not pd.isna(row['количество голосов']) else None,
             "date_of_update_ucn2023": row['время записи'] if not pd.isna(row['время записи']) else None,
             "rank_ucn2023": row['место в рейтинге']if not pd.isna(row['место в рейтинге']) else None,
