@@ -117,7 +117,13 @@ class Vacation(Base):
     
     
     
-
+class Ucn2025(Base):
+    __tablename__ = 'ucn2025'
+    ucn2025_id: Mapped[int] = mapped_column(INTEGER, primary_key=True, autoincrement=True)
+    city_id: Mapped[int] = mapped_column(INTEGER, ForeignKey('cities.city_id'), nullable=True)
+    city_name_from_gosuslugi: Mapped[str] = mapped_column(String(255), nullable=True)
+    number_of_votes_ucn2025: Mapped[int] = mapped_column(INTEGER)
+    date_of_update_ucn2025: Mapped[DateTime] = mapped_column(TIMESTAMP)
     
     
     
