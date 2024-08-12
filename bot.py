@@ -68,6 +68,8 @@ async def main():
     
     print('Бот запущен и готов к приему сообщений')
     await bot.delete_webhook(drop_pending_updates=True)
+    await on_startup()
+    await scheduled_ucn_votes_updater()
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types(), skip_updates=True)
 
 if __name__ == "__main__":
