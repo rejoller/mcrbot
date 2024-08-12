@@ -32,7 +32,6 @@ mytable.png
 /otpusk/*
 /VOLS/*
 .vscode/
-*.txt
 .idea/
 data_sources/credentials.json
 *.ipynb
