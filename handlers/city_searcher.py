@@ -1,4 +1,4 @@
-from aiogram.types import Message
+from aiogram.types import Message, ReplyKeyboardRemove
 from aiogram import Router, F, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder

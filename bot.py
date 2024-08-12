@@ -61,7 +61,7 @@ async def main():
     dp.update.middleware(CitiesMiddleware(session_pool=session_maker, cities=cities))
     scheduler = AsyncIOScheduler(timezone=ZoneInfo("Asia/Krasnoyarsk"))
     scheduler.add_job(on_startup, 'interval', minutes=INTERVAL_MIN)
-    scheduler.add_job(scheduled_ucn_votes_updater, 'interval', minutes=0.1)
+    # scheduler.add_job(scheduled_ucn_votes_updater, 'interval', minutes=0.1)
     scheduler.start()
     router = setup_routers()
     dp.include_router(router)
