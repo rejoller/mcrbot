@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 from aiogram import Dispatcher, Bot
 import pandas as pd
 
-from config import BOT_TOKEN, INTERVAL_MIN, REDIS_URL
+from config import BOT_TOKEN, INTERVAL_MIN
 from aiogram.fsm.storage.redis import RedisStorage
 
 from data_sources.googlesheets import city_saver, szoreg_saver
@@ -19,9 +19,9 @@ from logger.logging_middleware import LoggingMiddleware
 from middlewares.citiesmiddleware import CitiesMiddleware
 from handlers import setup_routers
 import os
-#redis_url = os.getenv("REDIS_URL", "redis://redis:6379/3")
+redis_url = os.getenv("REDIS_URL", "redis://redis:6379/3")
 
-storage = RedisStorage.from_url(REDIS_URL)
+storage = RedisStorage.from_url(redis_url)
 
 
 
@@ -33,10 +33,10 @@ async def on_startup():
     async with session_maker() as session:
         try:
             #await drop_db()
-            # await create_db()
-            # await city_saver(session)
-            # await szoreg_saver(session)
-            # await schools_saver(session)
+            await create_db()
+            await city_saver(session)
+            await szoreg_saver(session)
+            await schools_saver(session)
             await load_subsidies_file(session)
         except Exception as e:
             logging.error(f'Failed to initialize and load data: {e}', exc_info=True)
@@ -61,7 +61,7 @@ async def main():
     dp.update.middleware(CitiesMiddleware(session_pool=session_maker, cities=cities))
     scheduler = AsyncIOScheduler(timezone=ZoneInfo("Asia/Krasnoyarsk"))
     scheduler.add_job(on_startup, 'interval', minutes=INTERVAL_MIN)
-    # scheduler.add_job(scheduled_ucn_votes_updater, 'interval', minutes=0.1)
+    scheduler.add_job(scheduled_ucn_votes_updater, 'interval', minutes=5)
     scheduler.start()
     router = setup_routers()
     dp.include_router(router)
