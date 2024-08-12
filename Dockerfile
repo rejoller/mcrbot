@@ -7,13 +7,17 @@ RUN apt-get update && \
 
 
 WORKDIR /app
-COPY . .
+COPY requirements.txt .
+
+
 
 RUN python3 -m venv venv
 ENV PATH="/app/venv/bin:$PATH"
 
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+COPY . .
 
 
 CMD ["python3", "bot.py"]
