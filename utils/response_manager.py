@@ -1,14 +1,20 @@
+import logging
 import pandas as pd
+from pandas.errors import DataError
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Dict, Any
+
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, or_
+from sqlalchemy import select, delete, or_, over, func, alias
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import aliased
+
 from aiogram.fsm.context import FSMContext
-from database.models import Cities, Espd, Schools
+from database.models import Cities, Espd, Schools, Ucn2025
 from aiogram.types import Message
 from icecream import ic
+from datetime import datetime as dt
 
 
 
@@ -43,22 +49,47 @@ async def main_response_creator(session: AsyncSession, city_id = None):
                             Cities.rank_ucn2023, Cities.number_of_votes_ucn2023, Cities.same_number_of_votes_ucn2023,
                             Cities.latitude, Cities.longitude, Cities.internet, Cities.arctic_zone)  \
                     .where(Cities.city_id ==city_id)
-        
+    
+    
+    ucn2025_subquery = select(Ucn2025.city_name_from_gosuslugi, Ucn2025.city_id, Ucn2025.number_of_votes_ucn2025,
+                           Ucn2025.date_of_update_ucn2025, func.rank().over(order_by=Ucn2025.number_of_votes_ucn2025.desc()).label('rank'))
+
     cities_result = await session.execute(cities_query)
     response_cities = cities_result.all()
+        
+    ucn2025_result = await session.execute(ucn2025_subquery)
+    response_ucn2025 = ucn2025_result.all()
+    ucn2025df = pd.DataFrame(response_ucn2025)
+    
+    ucn2025df = ucn2025df.query(f'city_id == {city_id}').reset_index()
+    ucn2025df['date_of_update_ucn2025'] = pd.to_datetime(ucn2025df['date_of_update_ucn2025'], dayfirst=True)
+
+
+    ucn2025df.loc[:, 'date_of_update_ucn2025'] = ucn2025df['date_of_update_ucn2025'].dt.strftime('%d.%m.%Y %H:%M')
+
+    rank = ''
+    update_date = ''
+    number_of_votes = ''
+    
+    try:
+        rank = ucn2025df['rank'].iloc[0]
+        update_date = ucn2025df['date_of_update_ucn2025'].iloc[0]
+        number_of_votes = ucn2025df['number_of_votes_ucn2025'].iloc[0]
+    except:
+        logging.warning('значения уцн не найдены')
+    
+    
     main_df = pd.DataFrame(response_cities)
     main_df = main_df.reset_index()
     main_response=''
     if not main_df.empty:
         for i, row in main_df.iterrows():
             row.fillna('')
-            main_response = f'<b>{row["city_full_name"]}</b>\n\n'
-            if row['selsovet'] != '':
-                main_response += f'{row["selsovet"]}\n\n'
+            main_response = f'<b>{row["city_full_name"]}</b>\n{row["selsovet"]}\n\n'
             if row['arctic_zone'] == True:
                 main_response += '❄️Арктическая зона❄️\n\n'            
             main_response += f'👥население 2010 г: {row["population_2010"]}\n'
-            main_response += f'👥население 2020 г: {row["population_2020"]}\n'
+            main_response += f'👥население 2020 г: {row["population_2020"]}\n\n'
             if row['television'] != None:
                 main_response += f'📺телевидение: {row["television"]}\n'
             if row['taksophone_address'] != '':
@@ -82,13 +113,16 @@ async def main_response_creator(session: AsyncSession, city_id = None):
                 main_response += 'Отсутствует\n'
             main_response += '</pre>\n'
             if row['subsid_operator'] != 'None' and row['subsid_operator'] != '':
-                main_response += (f'\n\nнаселенный пункт был подключен в рамках государственной программый "Развитие информационного общества"'
-                                f'в {row["subsid_year"]} году, оператор {row["subsid_operator"]}\nhttp://digital.krskstate.ru/subsidiimo/page17877')
+                main_response += (f'\n\nнаселенный пункт был подключен в рамках государственной программый <a href="http://digital.krskstate.ru/subsidiimo/page17877">Развитие информационного общества</a>     '
+                                f'в {row["subsid_year"]} году, оператор {row["subsid_operator"]}\n')
                 
-            if row['rank_ucn2023'] != None:
-                main_response += f'\n\n<b>Голосование УЦН 2024</b>\nhttps://www.gosuslugi.ru/inet\n\nколичество голосов: <b>{row["number_of_votes_ucn2023"]} </b>'
-                main_response += f'(такое же количество\nголосов имеют {row["same_number_of_votes_ucn2023"]} населенных пунктов)'
-                main_response += f'\n🏆Место в рейтинге {row["rank_ucn2023"]}\n'   
+            if rank != None and rank != '':
+                main_response += f'\n\n<a href="https://www.gosuslugi.ru/inet">Голосование УЦН 2024</a>\n\n🗳️Количество голосов: <b>{number_of_votes} </b>'
+                main_response += f'\n🏆Место в рейтинге: <b>{rank}</b>\n'
+                main_response += f'🗓️Дата обновления: <b>{update_date}</b>'
+            
+            main_response += '\nДля того чтобы получить информацию о голосовании <a href="https://www.gosuslugi.ru/inet">УЦН 2024</a> введите нажмите на команду /ucn'
+                   
     return main_response
     
     
