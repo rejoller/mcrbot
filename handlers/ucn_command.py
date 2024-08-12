@@ -27,19 +27,20 @@ async def handle_help(message: types.Message, session: AsyncSession):
     directory = 'data_sources/ucn'
     filename = 'УЦН.xlsx'
     
+    if not os.path.exists(directory):
+            os.mkdir(directory)
+    
     destination = os.path.join(directory, filename)    
     writer = pd.ExcelWriter(destination, engine='xlsxwriter')
-
-
-    ucn2025df.to_excel(writer, index=False, sheet_name='Sheet1')
+    ucn2025df.to_excel(writer, index=False, sheet_name='УЦН 2.0')
 
 
     workbook = writer.book
-    worksheet = writer.sheets['Sheet1']
+    worksheet = writer.sheets['УЦН 2.0']
     for i, col in enumerate(ucn2025df.columns):
         width = max(ucn2025df[col].apply(lambda x: len(str(x))).max(), len(col))
         worksheet.set_column(i, i, width)
     writer.close()
 
     
-    await message.answer_document(caption='Голосование УЦН', document=types.FSInputFile(destination))
+    await message.answer_document(caption='Голосование УЦН 2.0', document=types.FSInputFile(destination))
