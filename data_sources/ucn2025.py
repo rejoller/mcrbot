@@ -9,8 +9,10 @@ from sqlalchemy import select, update
 
 
 from database.models import Cities, Ucn2025
+from utils.time_limiter import timeout
 
 
+@timeout(10)
 async def ucn_votes_updater(session: AsyncSession):
     async with aiohttp.ClientSession() as client_session:
         try:
