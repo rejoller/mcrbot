@@ -36,7 +36,7 @@ async def handle_start_new_dialog(message: Message, state: FSMContext, session: 
         await state.clear()
         return
     if not selected_np.isdigit():
-        await ('Введено некорректное значение. Пожалуйста, введите число.')
+        await message.answer('Введено некорректное значение. Пожалуйста, введите число.')
         return
     index = int(selected_np)
     if index <= 0 or index > len(many_cities):
