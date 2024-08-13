@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 from aiogram import Dispatcher, Bot
 import pandas as pd
 
-from config import BOT_TOKEN, INTERVAL_MIN
+from config import BOT_TOKEN, INTERVAL_MIN, REDIS_URL, UCN_INTERVAL_MIN
 from aiogram.fsm.storage.redis import RedisStorage
 
 from data_sources.googlesheets import city_saver, szoreg_saver
@@ -61,7 +61,7 @@ async def main():
     dp.update.middleware(CitiesMiddleware(session_pool=session_maker, cities=cities))
     scheduler = AsyncIOScheduler(timezone=ZoneInfo("Asia/Krasnoyarsk"))
     scheduler.add_job(on_startup, 'interval', minutes=INTERVAL_MIN)
-    scheduler.add_job(scheduled_ucn_votes_updater, 'interval', minutes=5)
+    scheduler.add_job(scheduled_ucn_votes_updater, 'interval', minutes=UCN_INTERVAL_MIN)
     scheduler.start()
     router = setup_routers()
     dp.include_router(router)
@@ -71,6 +71,7 @@ async def main():
     await on_startup()
     await scheduled_ucn_votes_updater()
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types(), skip_updates=True)
+    
 
 if __name__ == "__main__":
     asyncio.run(main())
