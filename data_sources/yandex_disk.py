@@ -11,6 +11,10 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import literal, update
 
+from utils.time_limiter import timeout
+
+
+
 def exctract_signal_level(signal_info):
     if signal_info !=  '\\xa0' and pd.notnull(signal_info):   
         signal_info = signal_info.replace('(', ' ').replace(')','').split(' ')
@@ -29,8 +33,9 @@ def exctract_quality_level(signal_info):
             return quality   
     else:
         return None
-
-
+    
+    
+timeout(10)
 async def load_subsidies_file(session: AsyncSession):
     try:
         y = yadisk.YaDisk(token=OAUTH_TOKEN)
