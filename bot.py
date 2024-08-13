@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 from aiogram import Dispatcher, Bot
 import pandas as pd
 
-from config import BOT_TOKEN, INTERVAL_MIN, REDIS_URL, UCN_INTERVAL_MIN
+from config import BOT_TOKEN, INTERVAL_MIN, UCN_INTERVAL_MIN
 from aiogram.fsm.storage.redis import RedisStorage
 
 from data_sources.yandex_disk import load_subsidies_file
@@ -27,16 +27,18 @@ storage = RedisStorage.from_url(redis_url)
 
 async def on_startup():
     from database.engine import session_maker 
-    from data_sources.googlesheets import city_saver, szoreg_saver, schools_saver
+    from data_sources.googlesheets import szoreg_saver, schools_saver
 
     async with session_maker() as session:
         try:
-            #await drop_db()
+            # await drop_db()
+            start_time = time.time()
             await create_db()
             await city_saver(session)
             await szoreg_saver(session)
             await schools_saver(session)
             await load_subsidies_file(session)
+            logging.info(f'on_startup завершена за {time.time() - start_time} секунд')
         except Exception as e:
             logging.error(f'Failed to initialize and load data: {e}', exc_info=True)
             
@@ -64,7 +66,6 @@ async def main():
     scheduler.start()
     router = setup_routers()
     dp.include_router(router)
-    
     print('Бот запущен и готов к приему сообщений')
     await bot.delete_webhook(drop_pending_updates=True)
     await on_startup()
@@ -74,3 +75,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+    
