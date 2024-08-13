@@ -37,3 +37,4 @@ data_sources/credentials.json
 *.ipynb
 *.json
 *.csv
+bot.py
