@@ -1,19 +1,8 @@
 services:
-  redis:
-    image: redis:latest
-  postgres:
-    image: postgres:latest
-    environment:
-      POSTGRES_USER: rejoller
-      POSTGRES_PASSWORD: 9205
-      POSTGRES_DB: mcrv2
-  bot:
-    image: 'mcrv2tgbot'
-    environment: 
-      REDIS_URL: redis://redis:6379/3
-      DBURL: 'postgresql+asyncpg://rejoller:9205@postgres:5432/mcrv2'  # Update here as well
-    restart: "always"
-    depends_on:
-      - postgres
-      - redis
-
+    redis:
+      image: redis:latest
+    bot:
+      image: 'mcrv2tgbot'
+      environment:
+        REDIS_URL: redis://redis:6379/3
+      restart: "always"
