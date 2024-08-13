@@ -2,12 +2,15 @@ import os
 from aiogram.filters import Command
 from aiogram import Router, types, F
 import pandas as pd
-from pandas import option_context
+
+
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from database.models import Ucn2025
+
+from datetime import datetime as dt
 from icecream import ic
 
 router = Router()
@@ -22,6 +25,9 @@ async def handle_help(message: types.Message, session: AsyncSession):
     response_ucn2025 = ucn2025_result.all()
     ucn2025df = pd.DataFrame(response_ucn2025)
     ucn2025df.index +=1
+    response_ucn2025['date_of_update_ucn2025'] = response_ucn2025['date_of_update_ucn2025'] + pd.Timedelta(hours=7)
+
+    response_ucn2025['date_of_update_ucn2025'] = response_ucn2025['date_of_update_ucn2025'].dt.strftime('%d.%m.%Y %H:%M')
     ucn2025df = ucn2025df.rename(columns={'city_name_from_gosuslugi':'Наименование населенного пункта','city_id': 'ID',
                               'number_of_votes_ucn2025':'количество голосов', 'date_of_update_ucn2025': 'дата актуальности', 'rank': 'Место в рейтинге'})
     directory = 'data_sources/ucn'
