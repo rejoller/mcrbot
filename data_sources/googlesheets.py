@@ -1,3 +1,4 @@
+import logging
 from google.oauth2.service_account import Credentials
 import gspread_asyncio
 from icecream import ic
@@ -47,61 +48,79 @@ async def szoreg_saver(session: AsyncSession):
         print('еспд загружены')
 
 async def city_saver(session: AsyncSession):
-    cities_df = pd.from_gsheet(spreadsheet_id=SPREADSHEET_ID,
-                               sheet_name='goroda2.0',
-                               range_name='!A:AS')
-    cities_df[' Население '] = cities_df[' Население '].apply(
-        lambda x: int(x.replace('\xa0', '').replace(' ', '').replace('-', '0')))
-    
-    cities_df['перепись 2020'] = cities_df['перепись 2020'].apply(
-        lambda x: int(x.replace('\xa0', '').replace(' ', '').replace('-', '0')))
-    
-    cities_df['количество голосов'] = cities_df['количество голосов'].apply(
-        lambda x: int(x) if pd.notnull(x) and x != '' else None)
-    
-    cities_df['место в рейтинге'] = cities_df['место в рейтинге'].apply(
-        lambda x: int(x) if pd.notnull(x) and x != '' else None)
-    
-    cities_df['такое же количество голосов имеют'] = cities_df['такое же количество голосов имеют'].apply(
-        lambda x: int(x) if pd.notnull(x) and x != '' else None)
-    
-    
-    cities_df.fillna('')
-    to_db_data = [
-        {
-            "city_id": int(row['ключ']),
-            "region": row['район'],
-            "city_short_name": row['Краткое наименование населенного пункта'],
-            "city_full_name": row['Наименование населенного пункта'],
-            "population_2010": int(row[' Население ']),
-            "population_2020": int(row['перепись 2020']),
-            "arctic_zone": False if row['Арктическая зона'] == '' else True,
-            "latitude": float(row['широта']),
-            "longitude": float(row['долгота']),
-            "fias": row['ФИАС'],
-            "taksophone_address": str(row['Таксофон']),
-            "subsid_operator": row['оператор по субсидии'],
-            "subsid_year": row['Субсидия Таня, год'],
-            "selsovet": row['сельсовет'],
-            "city_name_from_gosuslugi": row['нп из госуслуг'],
-            "number_of_votes_ucn2023": row['количество голосов']if not pd.isna(row['количество голосов']) else None,
-            "date_of_update_ucn2023": row['время записи'] if not pd.isna(row['время записи']) else None,
-            "rank_ucn2023": row['место в рейтинге']if not pd.isna(row['место в рейтинге']) else None,
-            "same_number_of_votes_ucn2023": row['такое же количество голосов имеют']if not pd.isna(row['такое же количество голосов имеют']) else None,
-            "television": row['Телевидение'],
-            "radio": row['Радио']
-        }
-        for _, row in cities_df.iterrows()
-    ]
-    
-    BATCH_SIZE = 1000  
+    try:
+        # Чтение данных из Google Sheets
+        try:
+            cities_df = pd.from_gsheet(spreadsheet_id=SPREADSHEET_ID,
+                                       sheet_name='goroda2.0',
+                                       range_name='!A:AS')
+        except Exception as e:
+            logging.error(f'Ошибка при чтении данных из Google Sheets: {e}')
+            return
+        
+        # Обработка данных
+        try:
+            cities_df[' Население '] = cities_df[' Население '].apply(
+                lambda x: int(x.replace('\xa0', '').replace(' ', '').replace('-', '0')))
+            cities_df['перепись 2020'] = cities_df['перепись 2020'].apply(
+                lambda x: int(x.replace('\xa0', '').replace(' ', '').replace('-', '0')))
+            cities_df['количество голосов'] = cities_df['количество голосов'].apply(
+                lambda x: int(x) if pd.notnull(x) and x != '' else None)
+            cities_df['место в рейтинге'] = cities_df['место в рейтинге'].apply(
+                lambda x: int(x) if pd.notnull(x) and x != '' else None)
+            cities_df['такое же количество голосов имеют'] = cities_df['такое же количество голосов имеют'].apply(
+                lambda x: int(x) if pd.notnull(x) and x != '' else None)
+            cities_df.fillna('')
+        except Exception as e:
+            logging.error(f'Ошибка при обработке данных: {e}')
+            return
+        
+        # Подготовка данных для записи в базу данных
+        try:
+            to_db_data = [
+                {
+                    "city_id": int(row['ключ']),
+                    "region": row['район'],
+                    "city_short_name": row['Краткое наименование населенного пункта'],
+                    "city_full_name": row['Наименование населенного пункта'],
+                    "population_2010": int(row[' Население ']),
+                    "population_2020": int(row['перепись 2020']),
+                    "arctic_zone": False if row['Арктическая зона'] == '' else True,
+                    "latitude": float(row['широта']),
+                    "longitude": float(row['долгота']),
+                    "fias": row['ФИАС'],
+                    "taksophone_address": str(row['Таксофон']),
+                    "subsid_operator": row['оператор по субсидии'],
+                    "subsid_year": row['Субсидия Таня, год'],
+                    "selsovet": row['сельсовет'],
+                    "city_name_from_gosuslugi": row['нп из госуслуг'],
+                    "number_of_votes_ucn2023": row['количество голосов'] if not pd.isna(row['количество голосов']) else None,
+                    "date_of_update_ucn2023": row['время записи'] if not pd.isna(row['время записи']) else None,
+                    "rank_ucn2023": row['место в рейтинге'] if not pd.isna(row['место в рейтинге']) else None,
+                    "same_number_of_votes_ucn2023": row['такое же количество голосов имеют'] if not pd.isna(row['такое же количество голосов имеют']) else None,
+                    "television": row['Телевидение'],
+                    "radio": row['Радио']
+                }
+                for _, row in cities_df.iterrows()
+            ]
+        except Exception as e:
+            logging.error(f'Ошибка при подготовке данных для записи в БД: {e}')
+            return
 
-    for i in range(0, len(to_db_data), BATCH_SIZE):
-        batch = to_db_data[i:i + BATCH_SIZE]
-        add_db_query = insert(Cities).values(batch).on_conflict_do_nothing()
-        await session.execute(add_db_query)
-        await session.commit()
-        print('основная загружена')
+        # Запись данных в базу данных
+        try:
+            BATCH_SIZE = 1000  
+            for i in range(0, len(to_db_data), BATCH_SIZE):
+                batch = to_db_data[i:i + BATCH_SIZE]
+                add_db_query = insert(Cities).values(batch).on_conflict_do_nothing()
+                await session.execute(add_db_query)
+                await session.commit()
+            logging.info('основная таблица успешно загружена')
+        except Exception as e:
+            logging.error(f'Ошибка при записи данных в БД: {e}')
+    
+    except Exception as e:
+        logging.error(f'Неизвестная ошибка: {e}')
 
 
 
