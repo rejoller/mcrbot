@@ -7,7 +7,6 @@ import pandas as pd
 from config import BOT_TOKEN, INTERVAL_MIN, REDIS_URL, UCN_INTERVAL_MIN
 from aiogram.fsm.storage.redis import RedisStorage
 
-from data_sources.googlesheets import city_saver, szoreg_saver
 from data_sources.yandex_disk import load_subsidies_file
 from data_sources.ucn2025 import ucn_votes_updater
 from database.db import DataBaseSession
@@ -28,7 +27,7 @@ storage = RedisStorage.from_url(redis_url)
 
 async def on_startup():
     from database.engine import session_maker 
-    from data_sources.googlesheets import szoreg_saver, schools_saver
+    from data_sources.googlesheets import city_saver, szoreg_saver, schools_saver
 
     async with session_maker() as session:
         try:

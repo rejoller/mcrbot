@@ -57,7 +57,6 @@ async def handle_start_new_dialog(message: Message, state: FSMContext, session: 
             logging.exception('Не удалось удалить сообщение')
         latitude, longitude = await get_coordinates(session, city_id=int(city_id))
         main_response = await main_response_creator(session, city_id=int(city_id))
-        await bot.send_location(chat_id=message.from_user.id, latitude=latitude, longitude=longitude)
         await state.clear()
         builder_1 = InlineKeyboardBuilder()
         builder_2 = InlineKeyboardBuilder()
@@ -66,7 +65,8 @@ async def handle_start_new_dialog(message: Message, state: FSMContext, session: 
             text="Оставить обратную связь", callback_data=f'start_survey_{int(city_id)}'
         )
         keyboard_1 = builder_1.as_markup()
-        await message.answer(text='<b>Выбранный населенный пункт✅</b>', parse_mode='HTML', reply_markup=types.ReplyKeyboardRemove())
+        
+        await bot.send_location(chat_id=message.from_user.id, latitude=latitude, longitude=longitude, reply_markup=types.ReplyKeyboardRemove())
         await message.answer(text=main_response, parse_mode='HTML', disable_web_page_preview=True, reply_markup=keyboard_1)
 
         espd_info, elements_number = await espd_response_creator(session, city_id=int(city_id))

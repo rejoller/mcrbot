@@ -39,8 +39,7 @@ async def find_keys_by_value(search_value):
 
 async def find_similar_cities(search_value, threshold=70):
     city_dict = get_city_dict()
-    all_cities = [similar_cities for key,
-                  (_, similar_cities) in city_dict.items()]
+    all_cities = {similar_city for key, (_, similar_cities) in city_dict.items() for similar_city in similar_cities}
     best_matches = process.extract(search_value, all_cities, limit=5)
     result = [match for match in best_matches if match[1] >= threshold]
     return result
@@ -60,7 +59,7 @@ async def handle_city_search(message: Message, state: FSMContext, session: Async
         await state.clear()
         latitude, longitude = await get_coordinates(session, city_id=int(np_ids[0]))
         main_response = await main_response_creator(session, city_id=int(np_ids[0]))
-        await bot.send_location(chat_id=message.from_user.id, latitude=latitude, longitude=longitude)
+        await bot.send_location(chat_id=message.from_user.id, latitude=latitude, longitude=longitude, reply_markup=ReplyKeyboardRemove())
         builder_1 = InlineKeyboardBuilder()
         builder_2 = InlineKeyboardBuilder()
         builder_1.button(
