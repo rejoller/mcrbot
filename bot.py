@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from zoneinfo import ZoneInfo
 from aiogram import Dispatcher, Bot
 import pandas as pd
@@ -9,6 +10,7 @@ from aiogram.fsm.storage.redis import RedisStorage
 
 from data_sources.yandex_disk import load_subsidies_file
 from data_sources.ucn2025 import ucn_votes_updater
+from data_sources.googlesheets import city_saver
 from database.db import DataBaseSession
 from database.engine import create_db, session_maker, drop_db
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
