@@ -46,6 +46,7 @@ async def ucn_votes_updater(session: AsyncSession):
                             )
                             await session.execute(insert_query)
                     await session.commit()
+                    print('Информация УЦН загружена')
                 else:
                     print(f"Request failed with status code {response.status}")
         except aiohttp.ClientTimeout:
