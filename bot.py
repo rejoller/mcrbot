@@ -35,11 +35,12 @@ async def on_startup():
         try:
             # await drop_db()
             start_time = time.time()
+            # await drop_db()
             await create_db()
             await city_saver(session)
             await szoreg_saver(session)
             await schools_saver(session)
-            await load_subsidies_file(session)
+            
             logging.info(f'on_startup завершена за {time.time() - start_time} секунд')
         except Exception as e:
             logging.error(f'Failed to initialize and load data: {e}', exc_info=True)
@@ -48,6 +49,7 @@ async def on_startup():
 
 async def scheduled_ucn_votes_updater():
     async with session_maker() as session:
+        await load_subsidies_file(session)
         await ucn_votes_updater(session)
 
 
@@ -70,7 +72,7 @@ async def main():
     dp.include_router(router)
     print('Бот запущен и готов к приему сообщений')
     await bot.delete_webhook(drop_pending_updates=True)
-    await on_startup()
+    # await on_startup()
     await scheduled_ucn_votes_updater()
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types(), skip_updates=True)
     
