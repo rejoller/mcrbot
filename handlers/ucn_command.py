@@ -78,3 +78,4 @@ async def handle_help(message: types.Message, session: AsyncSession):
     
     
     await message.answer_document(caption=caption, document=types.FSInputFile(destination), parse_mode='HTML')
+    os.remove(destination)
