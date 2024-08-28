@@ -5,4 +5,10 @@ services:
       image: 'mcrv2tgbot'
       environment:
         REDIS_URL: redis://redis:6379/3
+      volumes:
+        - /Users/rejoller/mcrbot/mcrbot/data_sources/vacation:/app/data_sources/vacation
+        - /Users/rejoller/mcrbot/mcrbot/bot_log/:/app/bot_log
+        
       restart: "always"
+      depends_on:
+        - redis
