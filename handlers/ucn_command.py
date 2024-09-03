@@ -1,5 +1,4 @@
 import os
-from zoneinfo import ZoneInfo
 from aiogram.filters import Command
 from aiogram import Router, types, F
 import pandas as pd
