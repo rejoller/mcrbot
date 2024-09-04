@@ -1,4 +1,4 @@
-from aiogram import Router, F
+from aiogram import Router
 
 
 
@@ -11,7 +11,7 @@ def setup_routers() -> Router:
                             help_command, vacation_file, vacation_response, ucn_command)
     
     router = Router()
-
+    router.include_router(help_command.router)
     router.include_router(start_command.router)
     router.include_router(vacation_response.router)
     router.include_router(ucn_command.router)
@@ -25,7 +25,6 @@ def setup_routers() -> Router:
     router.include_router(survey_beeline.router)
     router.include_router(survey_mts.router)
     router.include_router(survey_megafon.router)
-    router.include_router(help_command.router)
     router.include_router(vacation_file.router)
     
     

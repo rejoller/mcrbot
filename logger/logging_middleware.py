@@ -7,7 +7,7 @@ from datetime import datetime as dt
 
 
 def log_user_data(user_id, first_name, last_name, username, message_text):
-    file_path = 'users_data.csv'
+    file_path = 'bot_log/users_data.csv'
     current_time = dt.now().strftime("%Y-%m-%d %H:%M:%S")
 
     try:

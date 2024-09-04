@@ -1,4 +1,5 @@
 from io import BytesIO
+import logging
 import pandas as pd
 import requests
 import yadisk
@@ -59,41 +60,20 @@ async def load_subsidies_file(session: AsyncSession):
             df['tele2_level'] = df['Теле2'].apply(lambda x: exctract_signal_level(x))
             df['tele2_quality'] = df['Теле2'].apply(lambda x: exctract_quality_level(x))
             
-            to_db_data = [
-                    {
-                        "city_id": int(row['ключ']),
-                        "beeline_level": row['beeline_level'],
-                        "beeline_quality": row['beeline_quality'],
-                        "mts_level": row['mts_level'],
-                        "mts_quality": row['mts_quality'],
-                        "megafon_level": row['megafon_level'],
-                        "megafon_quality": row['megafon_quality'],
-                        "tele2_level": row['tele2_level'],
-                        "tele2_quality": row['tele2_quality'],    
-                    }
-                    
-                for _, row in df.iterrows()
-            ]
-            BATCH_SIZE = 1000
-
-            for i in range(0, len(to_db_data), BATCH_SIZE):
-                batch = to_db_data[i:i + BATCH_SIZE]
-    
-                for record in batch:
-                    add_db_query = update(Cities).values({
-                        "beeline_level": record['beeline_level'],
-                        "beeline_quality": record["beeline_quality"],
-                        "mts_level": record['mts_level'],
-                        "mts_quality": record["mts_quality"],
-                        "megafon_level": record['megafon_level'],
-                        "megafon_quality": record["megafon_quality"],
-                        "tele2_level": record['tele2_level'],
-                        "tele2_quality": record["tele2_quality"]
-                    }).where(Cities.city_id == int(record['city_id']))
-                    
-                    await session.execute(add_db_query)
-                await session.commit()
-                print('сотовая загружена')
+            for index, row in df.iterrows():
             
-    except:
-        print('ошибка файла загрузки')
+                to_db_query = update(Cities).where(Cities.city_id == int(row['ключ'])).values(
+                    city_id= int(row['ключ']),
+                    beeline_level= row['beeline_level'],
+                    beeline_quality= row['beeline_quality'],
+                    mts_level= row['mts_level'],
+                    mts_quality= row['mts_quality'],
+                    megafon_level= row['megafon_level'],
+                    megafon_quality= row['megafon_quality'],
+                    tele2_level= row['tele2_level'],
+                    tele2_quality= row['tele2_quality'])
+                await session.execute(to_db_query)
+                await session.commit()
+    except Exception as e:
+        logging.info(f'Импорт сотовой связи не удался {e}')
+        

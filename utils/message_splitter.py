@@ -1,5 +1,5 @@
-
 from icecream import ic
+
 async def split_message(message, max_length=4080):
     if len(message) <= max_length:
         return [message]
