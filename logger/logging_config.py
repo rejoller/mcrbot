@@ -1,7 +1,7 @@
 import logging
 
 def setup_logging():
-    file_handler = logging.FileHandler("bot.log")
+    file_handler = logging.FileHandler("bot_log/bot.log")
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 

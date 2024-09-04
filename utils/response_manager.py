@@ -52,7 +52,7 @@ async def main_response_creator(session: AsyncSession, city_id = None):
     
     
     ucn2025_subquery = select(Ucn2025.city_name_from_gosuslugi, Ucn2025.city_id, Ucn2025.number_of_votes_ucn2025,
-                           Ucn2025.date_of_update_ucn2025, func.rank().over(order_by=Ucn2025.number_of_votes_ucn2025.desc()).label('rank'))
+                           Ucn2025.date_of_update_ucn2025, func.dense_rank().over(order_by=Ucn2025.number_of_votes_ucn2025.desc()).label('rank'))
 
     cities_result = await session.execute(cities_query)
     response_cities = cities_result.all()

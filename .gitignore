@@ -37,4 +37,6 @@ data_sources/credentials.json
 *.ipynb
 *.json
 *.csv
-bot.py
+bot.log
+database/db_config.py
+users_data.csv

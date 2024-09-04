@@ -1,5 +1,4 @@
 import os
-from zoneinfo import ZoneInfo
 from aiogram.filters import Command
 from aiogram import Router, types, F
 import pandas as pd
@@ -12,6 +11,7 @@ from sqlalchemy import select, func
 from database.models import Ucn2025
 
 from datetime import datetime as dt
+from datetime import timedelta
 from icecream import ic
 
 router = Router()
@@ -24,6 +24,20 @@ async def handle_help(message: types.Message, session: AsyncSession):
 
     ucn2025_result = await session.execute(ucn2025_subquery)
     response_ucn2025 = ucn2025_result.all()
+    
+    
+    
+    
+    text_time_query = select(func.max(Ucn2025.date_of_update_ucn2025))
+    text_time_query_result = await session.execute(text_time_query)
+    text_time_result = text_time_query_result.scalar_one()
+   
+    
+    text_time_result = text_time_result + timedelta(hours=7)
+    text_time_result = pd.to_datetime(text_time_result, dayfirst=True)
+    text_time_result.strftime('%d.%m.%Y %H:%M')
+    
+    
     ucn2025df = pd.DataFrame(response_ucn2025)
     ucn2025df.index +=1
     ucn2025df['date_of_update_ucn2025'] = pd.to_datetime(
@@ -56,10 +70,11 @@ async def handle_help(message: types.Message, session: AsyncSession):
 
     count_of_votes = len(ucn2025df)
     sum_of_votes = ucn2025df['количество голосов'].sum()
-    vote_time = ucn2025df['дата актуальности'].max()
+    vote_time = text_time_result
     
     caption=(f'<b>Голосование УЦН 2.0</b>\n<i>{vote_time}</i>\n\nНаселенных пунктов: {count_of_votes}\n'
             f'Всего голосов в регионе: {sum_of_votes}\n')
     
     
     await message.answer_document(caption=caption, document=types.FSInputFile(destination), parse_mode='HTML')
+    os.remove(destination)

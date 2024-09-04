@@ -2,8 +2,9 @@ import asyncio
 import logging
 import time
 from zoneinfo import ZoneInfo
+import os
+
 from aiogram import Dispatcher, Bot
-import pandas as pd
 
 from config import BOT_TOKEN, INTERVAL_MIN, UCN_INTERVAL_MIN
 from aiogram.fsm.storage.redis import RedisStorage
@@ -12,15 +13,13 @@ from data_sources.yandex_disk import load_subsidies_file
 from data_sources.ucn2025 import ucn_votes_updater
 from data_sources.googlesheets import city_saver
 from database.db import DataBaseSession
-from database.engine import create_db, session_maker, drop_db
+from database.engine import create_db, session_maker
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from cities import get_city_dict
 from logger.logging_config import setup_logging
 from logger.logging_middleware import LoggingMiddleware
 from middlewares.citiesmiddleware import CitiesMiddleware
 from handlers import setup_routers
-import os
-redis_url = os.getenv("REDIS_URL", "redis://redis:6379/3")
 
 storage = RedisStorage.from_url(redis_url)
 
@@ -33,13 +32,13 @@ async def on_startup():
 
     async with session_maker() as session:
         try:
-            # await drop_db()
             start_time = time.time()
+            # await drop_db()
             await create_db()
             await city_saver(session)
             await szoreg_saver(session)
             await schools_saver(session)
-            await load_subsidies_file(session)
+            
             logging.info(f'on_startup завершена за {time.time() - start_time} секунд')
         except Exception as e:
             logging.error(f'Failed to initialize and load data: {e}', exc_info=True)
@@ -48,6 +47,7 @@ async def on_startup():
 
 async def scheduled_ucn_votes_updater():
     async with session_maker() as session:
+        await load_subsidies_file(session)
         await ucn_votes_updater(session)
 
 
