@@ -1,13 +1,3 @@
-.venv/
-config.py
-credentials.json
-start_bot.sh
-users_data.csv
-myenv3.9/
-env_aiogram3/
-aio3/
-myvenv3.9/
-__pycache__/
 *.pyc
 *.pyo
 *.tmp
@@ -41,3 +31,4 @@ bot.log
 database/db_config.py
 users_data.csv
 media_files/animations.py
+.venv
