@@ -21,6 +21,8 @@ from logger.logging_middleware import LoggingMiddleware
 from middlewares.citiesmiddleware import CitiesMiddleware
 from handlers import setup_routers
 
+
+redis_url = 'redis://localhost:6379/6'
 storage = RedisStorage.from_url(redis_url)
 
 
