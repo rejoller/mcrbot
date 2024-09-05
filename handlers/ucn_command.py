@@ -5,6 +5,7 @@ import pandas as pd
 
 
 
+import pytz
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
@@ -35,7 +36,7 @@ async def handle_help(message: types.Message, session: AsyncSession):
     
     text_time_result = text_time_result + timedelta(hours=7)
     text_time_result = pd.to_datetime(text_time_result, dayfirst=True)
-    text_time_result.strftime('%d.%m.%Y %H:%M')
+    text_time_result = text_time_result.strftime('%d.%m.%Y %H:%M')
     
     
     ucn2025df = pd.DataFrame(response_ucn2025)
