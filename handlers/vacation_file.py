@@ -18,6 +18,6 @@ async def contacts_handler(message: types.Message, bot: Bot):
         file_info = await bot.get_file(document.file_id)
         await bot.download_file(file_info.file_path, destination)
         await message.answer_animation(caption=f'Файл с отпусками загружен.\nХорошего дня тебе, '
-                                       f'{user_name}', animation=random.choice(vacation_files))
+                                       f'{user_name}', animation=random.choice(vacation_files), show_caption_above_media=True)
     if "рафик" not in file_name:
         await message.answer('Имя файла не подходит для сохранения')
