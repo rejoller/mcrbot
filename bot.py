@@ -6,7 +6,7 @@ import os
 
 from aiogram import Dispatcher, Bot
 
-from config import BOT_TOKEN, INTERVAL_MIN, UCN_INTERVAL_MIN
+from config import BOT_TOKEN, INTERVAL_MIN, UCN_INTERVAL_MIN, REDIS_URL
 from aiogram.fsm.storage.redis import RedisStorage
 
 from data_sources.yandex_disk import load_subsidies_file
@@ -22,8 +22,9 @@ from middlewares.citiesmiddleware import CitiesMiddleware
 from handlers import setup_routers
 
 
-redis_url = 'redis://localhost:6379/6'
-storage = RedisStorage.from_url(redis_url)
+
+
+storage = RedisStorage.from_url(REDIS_URL)
 
 
 
@@ -73,7 +74,7 @@ async def main():
     print('Бот запущен и готов к приему сообщений')
     await bot.delete_webhook(drop_pending_updates=True)
     await on_startup()
-    await scheduled_ucn_votes_updater()
+    #await scheduled_ucn_votes_updater()
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types(), skip_updates=True)
     
 

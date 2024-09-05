@@ -3,6 +3,7 @@ import os
 from media_files.animations import vacation_files
 import random
 
+
 router = Router()
 
 
@@ -20,5 +21,8 @@ async def contacts_handler(message: types.Message, bot: Bot):
         await bot.download_file(file_info.file_path, destination)
         await message.answer_animation(caption=f'Файл с отпусками загружен.\nХорошего дня тебе, {user_name}',
                                        animation=random.choice(vacation_files), show_caption_above_media=True)
+        
+
+
     if "рафик" not in file_name:
         await message.answer('Имя файла не подходит для сохранения')

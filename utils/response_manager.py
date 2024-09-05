@@ -67,6 +67,8 @@ async def main_response_creator(session: AsyncSession, city_id = None):
 
     ucn2025df.loc[:, 'date_of_update_ucn2025'] = ucn2025df['date_of_update_ucn2025'].dt.strftime('%d.%m.%Y %H:%M')
 
+    
+    
     rank = ''
     update_date = ''
     number_of_votes = ''
@@ -75,8 +77,8 @@ async def main_response_creator(session: AsyncSession, city_id = None):
         rank = ucn2025df['rank'].iloc[0]
         update_date = ucn2025df['date_of_update_ucn2025'].iloc[0]
         number_of_votes = ucn2025df['number_of_votes_ucn2025'].iloc[0]
-    except:
-        logging.warning('значения уцн не найдены')
+    except Exception as e:
+        logging.warning(f'значения уцн не найдены {e}')
     
     
     main_df = pd.DataFrame(response_cities)
