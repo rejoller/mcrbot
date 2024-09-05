@@ -40,3 +40,4 @@ data_sources/credentials.json
 bot.log
 database/db_config.py
 users_data.csv
+media_files/animations.py
