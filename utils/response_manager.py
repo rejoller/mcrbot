@@ -14,7 +14,7 @@ from aiogram.fsm.context import FSMContext
 from database.models import Cities, Espd, Schools, Ucn2025
 from aiogram.types import Message
 from icecream import ic
-from datetime import datetime as dt
+from datetime import datetime as dt, timedelta
 
 
 
@@ -62,7 +62,7 @@ async def main_response_creator(session: AsyncSession, city_id = None):
     ucn2025df = pd.DataFrame(response_ucn2025)
     
     ucn2025df = ucn2025df.query(f'city_id == {city_id}').reset_index()
-    ucn2025df['date_of_update_ucn2025'] = pd.to_datetime(ucn2025df['date_of_update_ucn2025'], dayfirst=True)
+    ucn2025df['date_of_update_ucn2025'] = pd.to_datetime(ucn2025df['date_of_update_ucn2025'], dayfirst=True) + timedelta(hours=7)
 
 
     ucn2025df.loc[:, 'date_of_update_ucn2025'] = ucn2025df['date_of_update_ucn2025'].dt.strftime('%d.%m.%Y %H:%M')
