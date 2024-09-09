@@ -1,21 +1,17 @@
-import logging
-from aiogram import Router
+from aiogram import Router, F, types, Bot
 from aiogram.types import Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram import Router, F, types, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import StateFilter
 
-
-from database.models import Cities
-from users.user_manager import MessagesManager
 from users.user_states import Form
-from icecream import ic
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, or_
-from sqlalchemy.dialects.postgresql import insert
 
-from utils.response_manager import espd_response_creator, get_coordinates, main_response_creator, schools_response_creator
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from utils.response_manager import (espd_response_creator, get_coordinates, 
+                                    main_response_creator, schools_response_creator)
+
+import logging
 
 
 router = Router()
@@ -30,8 +26,8 @@ async def handle_start_new_dialog(message: Message, state: FSMContext, session: 
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id - 1)
             await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-        except:
-            logging.exception('Не удалось удалить сообщение')
+        except Exception as e:
+            logging.info(f'Не удалось удалить сообщение {e}')
         await message.answer('Поиск отменен.', reply_markup=types.ReplyKeyboardRemove())
         await state.clear()
         return
@@ -53,8 +49,8 @@ async def handle_start_new_dialog(message: Message, state: FSMContext, session: 
         try:
             await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id - 1)
             await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
-        except:
-            logging.exception('Не удалось удалить сообщение')
+        except Exception as e:
+            logging.info(f'Не удалось удалить сообщение {e}')
         latitude, longitude = await get_coordinates(session, city_id=int(city_id))
         main_response = await main_response_creator(session, city_id=int(city_id))
         await state.clear()

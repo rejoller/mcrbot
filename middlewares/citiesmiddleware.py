@@ -1,10 +1,10 @@
 from aiogram import BaseMiddleware
+from aiogram.types import TelegramObject
+
 from typing import Callable, Dict, Any, Awaitable, List
-from aiogram.types import TelegramObject, Message
-from aiogram  import BaseMiddleware
+
 from sqlalchemy.ext.asyncio import async_sessionmaker
-import pandas as pd
-from icecream import ic
+
 from utils.input_manager import normalize_input
 
 

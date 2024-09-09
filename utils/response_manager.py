@@ -1,20 +1,12 @@
-import logging
 import pandas as pd
-from pandas.errors import DataError
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Dict, Any
 
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, or_, over, func, alias
-from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import aliased
-
-from aiogram.fsm.context import FSMContext
+from sqlalchemy import select, or_, func
 from database.models import Cities, Espd, Schools, Ucn2025
-from aiogram.types import Message
-from icecream import ic
-from datetime import datetime as dt, timedelta
+
+
+from datetime import timedelta
+import logging
 
 
 
@@ -121,9 +113,9 @@ async def main_response_creator(session: AsyncSession, city_id = None):
             if rank != None and rank != '':
                 main_response += f'\n\n<a href="https://www.gosuslugi.ru/inet">Голосование УЦН 2024</a>\n\n🗳️Количество голосов: <b>{number_of_votes} </b>'
                 main_response += f'\n🏆Место в рейтинге: <b>{rank}</b>\n'
-                main_response += f'🗓️Дата обновления: <b>{update_date}</b>'
+                main_response += f'🗓️Дата обновления: <b>{update_date}</b>\n'
             
-            main_response += '\nДля того чтобы получить информацию о голосовании <a href="https://www.gosuslugi.ru/inet">УЦН 2024</a> введите нажмите на команду /ucn'
+            main_response += '\nДля того чтобы получить информацию о голосовании <a href="https://www.gosuslugi.ru/inet">УЦН 2024</a> нажмите на команду /ucn'
                    
     return main_response
     

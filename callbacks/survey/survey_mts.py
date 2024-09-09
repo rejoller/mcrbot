@@ -1,16 +1,14 @@
-import traceback
+
 from aiogram import Router, F, types, Bot
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
-from database.models import Survey, Users
-from media_files.animations import (beeline_id, tele2_id, megafon_id, mts_id)
+from database.models import Survey
+from media_files.animations import  megafon_id, mts_id
 from datetime import datetime as dt
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import and_, select, update
-from aiogram.utils.keyboard import ReplyKeyboardBuilder
-from icecream import ic
+from sqlalchemy import and_, update
+
 
 
 router = Router()

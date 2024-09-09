@@ -1,7 +1,6 @@
 from aiogram import types, F, Router
-from aiogram.types import CallbackQuery
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from icecream import ic
 
 from utils.response_manager import  schools_response_creator
 from utils.message_splitter import split_message
