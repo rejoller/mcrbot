@@ -9,7 +9,7 @@ async def load_vacation_data():
     file_path.sort(key=os.path.getmtime, reverse=True)
     latest_file_path = file_path[0]
 
-    df = pd.read_excel(latest_file_path, engine ='openpyxl')
+    df = pd.read_excel(latest_file_path)
     df = df[~df['Сотрудник'].str.contains('увол.', na=False)]
     df['Начало_1'] = pd.to_datetime(df['Начало'], dayfirst=True)
     df['день'] = df['Начало_1'].apply(lambda x: x.day_of_week)
