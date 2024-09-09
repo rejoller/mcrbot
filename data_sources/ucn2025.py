@@ -11,11 +11,12 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from database.models import Cities, Ucn2025
 
+from utils.time_limiter import timeout
 
 from icecream import ic
 
 
-# @timeout(10)
+@timeout(20)
 async def ucn_votes_updater(session: AsyncSession):
     async with aiohttp.ClientSession() as client_session:
         
