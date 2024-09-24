@@ -47,7 +47,7 @@ async def handle_help(message: types.Message, session: AsyncSession):
 
     ucn2025df['date_of_update_ucn2025'] = (
         ucn2025df['date_of_update_ucn2025'].dt.strftime('%d.%m.%Y %H:%M')
-    ) + timedelta(hours=7)
+    )
 
     ucn2025df = ucn2025df.rename(columns={'city_name_from_gosuslugi':'Наименование населенного пункта','city_id': 'ID',
                               'number_of_votes_ucn2025':'количество голосов', 'date_of_update_ucn2025': 'дата актуальности', 'rank': 'Место в рейтинге'})
