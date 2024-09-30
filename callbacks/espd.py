@@ -16,10 +16,12 @@ async def handle_waiting_for_choise(query: types.CallbackQuery, session: AsyncSe
     try:
         for part in msg_parts:
             await query.message.answer(text=part, parse_mode='HTML')
+            await query.answer()
     except Exception as e:
         logging.info(f'не удалось разбить сообщение {e}')
         espd_info= await espd_no_tags_response_creator(session, city_id = int(city_id))    
         msg_parts = await split_message(espd_info)
         for part in msg_parts:
             await query.message.answer(text=part, parse_mode='HTML')
+            await query.answer()
         

@@ -118,3 +118,4 @@ async def handle_beeline_quality(query: types.CallbackQuery, state: FSMContext, 
         resize_keyboard=True, one_time_keyboard=True)
 
     await query.message.answer("При желании можете поделиться своим местоположением и номером телефона с нами 😊 \n (работает только со смартфона)", reply_markup=keyboard_loc)
+    await query.answer()

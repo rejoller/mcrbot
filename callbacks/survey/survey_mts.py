@@ -66,6 +66,7 @@ async def handle_mts_level(query: types.CallbackQuery, state: FSMContext, sessio
         animation=mts_id,
         caption="Пожалуйста, оцените уровень сигнала МТС:",
         reply_markup=markup)
+    await query.answer()
 
 
 @router.callback_query(F.data.startswith("mts_"), F.data.not_contains("mts_none"))
@@ -155,3 +156,4 @@ async def handle_megafon_level(query: types.CallbackQuery, state: FSMContext, se
         animation=megafon_id,
         caption="Пожалуйста, оцените уровень сигнала Мегафон:",
         reply_markup=markup)
+    await query.answer()

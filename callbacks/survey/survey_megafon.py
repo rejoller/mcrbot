@@ -125,3 +125,4 @@ async def handle_beeline_level(query: types.CallbackQuery, state: FSMContext, se
         animation=beeline_id,
         caption="Пожалуйста, оцените уровень сигнала Билайн:",
         reply_markup=markup)
+    await query.answer()

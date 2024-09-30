@@ -15,3 +15,4 @@ async def handle_waiting_for_choise(query: types.CallbackQuery, session: AsyncSe
     
     for part in msg_parts:
         await query.message.answer(text=part, parse_mode='HTML')
+        await query.answer()

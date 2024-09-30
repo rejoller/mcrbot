@@ -34,7 +34,7 @@ async def handle_start_survey(query: types.CallbackQuery, state: FSMContext, ses
         animation=tele2_id,
         caption="Пожалуйста, оцените уровень сигнала Tele2:",
         reply_markup=markup)
-
+    await query.answer()
 
 @router.callback_query(F.data.startswith("tele2_"), F.data.not_contains("tele2_none_"))
 async def handle_select_tele2_quality(query: types.CallbackQuery, state: FSMContext, session: AsyncSession, bot: Bot):
