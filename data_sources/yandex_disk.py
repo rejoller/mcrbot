@@ -4,7 +4,6 @@ import pandas as pd
 import requests
 import yadisk
 import os
-from icecream import ic
 
 from config import OAUTH_TOKEN
 from database.models import Cities
@@ -13,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import literal, update
 
 from utils.time_limiter import timeout
-from icecream import ic
 
 
 
