@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import literal, update
 
 from utils.time_limiter import timeout
+from icecream import ic
 
 
 
@@ -36,7 +37,7 @@ def exctract_quality_level(signal_info):
         return None
     
     
-timeout(10)
+timeout(40)
 async def load_subsidies_file(session: AsyncSession):
     try:
         y = yadisk.YaDisk(token=OAUTH_TOKEN)
@@ -77,3 +78,30 @@ async def load_subsidies_file(session: AsyncSession):
     except Exception as e:
         logging.info(f'Импорт сотовой связи не удался {e}')
         
+timeout(40)
+async def load_ucn_old_info(session: AsyncSession):
+    try:
+        y = yadisk.YaDisk(token=OAUTH_TOKEN)
+        file_path = '/Программы/Субсидия.xlsx'
+        if y.exists(file_path) and y.is_file(file_path):
+             
+            direct_url = y.get_download_link(file_path)
+            response = requests.get(direct_url)
+            response.raise_for_status()
+            df = pd.read_excel(BytesIO(response.content), sheet_name='УЦН 2.0')
+            df.dropna(subset=['Ключ'], inplace=True)
+            
+            
+            for index, row in df.iterrows():
+                try:
+                    to_db_query = update(Cities).where(Cities.city_id == int(row['Ключ'])).values(
+                        city_id= int(row['Ключ']),
+                        ucn_old= str(row['Год']),
+                        ucn_old_description= row['Статус'])
+                    
+                    await session.execute(to_db_query)
+                    await session.commit()
+                except Exception as e:
+                    logging.info(f'Импорт УЦН не удался {e}')
+    except Exception as e:
+        logging.info(f'Импорт УЦН не удался {e}')

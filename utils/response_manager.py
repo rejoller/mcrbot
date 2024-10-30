@@ -39,7 +39,7 @@ async def main_response_creator(session: AsyncSession, city_id = None):
                             Cities.megafon_quality, Cities.mts_level, Cities.mts_quality, Cities.tele2_level, Cities.tele2_quality,
                             Cities.taksophone_address, Cities.subsid_operator, Cities.subsid_year, Cities.date_of_update_ucn2023,
                             Cities.rank_ucn2023, Cities.number_of_votes_ucn2023, Cities.same_number_of_votes_ucn2023,
-                            Cities.latitude, Cities.longitude, Cities.internet, Cities.arctic_zone)  \
+                            Cities.latitude, Cities.longitude, Cities.internet, Cities.arctic_zone, Cities.ucn_old, Cities.ucn_old_description)  \
                     .where(Cities.city_id ==city_id)
     
     
@@ -109,6 +109,11 @@ async def main_response_creator(session: AsyncSession, city_id = None):
             if row['subsid_operator'] != 'None' and row['subsid_operator'] != '':
                 main_response += (f'\n\nнаселенный пункт был подключен в рамках государственной программый <a href="http://digital.krskstate.ru/subsidiimo/page17877">Развитие информационного общества</a>     '
                                 f'в {row["subsid_year"]} году, оператор {row["subsid_operator"]}\n')
+            if row['ucn_old']:
+                if row['ucn_old_description'] == 'реализация':
+                    main_response += f'\nнаселенный пункт запланирован к реализации в рамках программы УЦН в {row['ucn_old']} году\n'
+                else:
+                    main_response += f'\nнаселенный пункт был подключен в рамках программы УЦН в {row['ucn_old']} году\n'
                 
             if rank != None and rank != '':
                 main_response += f'\n\n<a href="https://www.gosuslugi.ru/inet">Голосование УЦН 2024</a>\n\n🗳️Количество голосов: <b>{number_of_votes} </b>'
@@ -182,7 +187,7 @@ async def schools_response_creator(session: AsyncSession, city_id = None):
     schools_elements_number = len(schools_df)
     
     if not schools_df.empty:
-        schools_info += '<b>Школы</b>:\n\n'
+        schools_info += '🏫Школы:\n\n'
         for i, row in schools_df.iterrows():
             i += 1
             schools_info += f'<blockquote>{i}.<b>{row["name_of_school"]}</b>\n{row["school_adress"]}\n'

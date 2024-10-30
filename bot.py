@@ -9,7 +9,7 @@ from aiogram import Dispatcher, Bot
 from config import BOT_TOKEN, INTERVAL_MIN, UCN_INTERVAL_MIN, REDIS_URL
 from aiogram.fsm.storage.redis import RedisStorage
 
-from data_sources.yandex_disk import load_subsidies_file
+from data_sources.yandex_disk import load_subsidies_file, load_ucn_old_info
 from data_sources.ucn2025 import ucn_votes_updater
 from data_sources.googlesheets import city_saver
 from database.db import DataBaseSession
@@ -52,6 +52,7 @@ async def scheduled_ucn_votes_updater():
     async with session_maker() as session:
         await load_subsidies_file(session)
         await ucn_votes_updater(session)
+        await load_ucn_old_info(session)
 
 
 
@@ -74,7 +75,7 @@ async def main():
     print('Бот запущен и готов к приему сообщений')
     await bot.delete_webhook(drop_pending_updates=True)
     await on_startup()
-    #await scheduled_ucn_votes_updater()
+    await scheduled_ucn_votes_updater()
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types(), skip_updates=True)
     
 

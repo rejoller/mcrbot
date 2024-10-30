@@ -41,7 +41,8 @@ class Cities(Base):
     same_number_of_votes_ucn2023: Mapped[int] = mapped_column(INTEGER, nullable=True)
     television: Mapped[str] = mapped_column(String(255), nullable=True)
     radio: Mapped[str] = mapped_column(String(255), nullable=True)
-    
+    ucn_old: Mapped[str] = mapped_column(String(255), nullable=True)
+    ucn_old_description: Mapped[str] = mapped_column(String(255), nullable=True)
     
 class Espd(Base):
     __tablename__ = 'espd'
