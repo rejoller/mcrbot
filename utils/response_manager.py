@@ -111,9 +111,9 @@ async def main_response_creator(session: AsyncSession, city_id = None):
                                 f'в {row["subsid_year"]} году, оператор {row["subsid_operator"]}\n')
             if row['ucn_old']:
                 if row['ucn_old_description'] == 'реализация':
-                    main_response += f'\nнаселенный пункт запланирован к реализации в рамках программы УЦН в {row['ucn_old']} году\n'
+                    main_response += f'\nнаселенный пункт запланирован к реализации в рамках программы УЦН в {row["ucn_old"]} году\n'
                 else:
-                    main_response += f'\nнаселенный пункт был подключен в рамках программы УЦН в {row['ucn_old']} году\n'
+                    main_response += f'\nнаселенный пункт был подключен в рамках программы УЦН в {row["ucn_old"]} году\n'
                 
             if rank != None and rank != '':
                 main_response += f'\n\n<a href="https://www.gosuslugi.ru/inet">Голосование УЦН 2024</a>\n\n🗳️Количество голосов: <b>{number_of_votes} </b>'
