@@ -190,7 +190,7 @@ async def schools_response_creator(session: AsyncSession, city_id = None):
         schools_info += '🏫Школы:\n\n'
         for i, row in schools_df.iterrows():
             i += 1
-            schools_info += f'<blockquote>{i}.<b>{row["name_of_school"]}</b>\n{row["school_adress"]}\n'
-            schools_info += f'{row["technology_type"]}, {row["internet_speed"]}</blockquote>\n\n'
+            schools_info += f'<blockquote>{i}.<>Наименование: <b>{row["name_of_school"]}\n<b>Адрес:</b> {row["school_adress"]}\n'
+            schools_info += f'<b>Тип подключения:</b> {row["technology_type"]}\n <b>Пропускная способность:</b> {row["internet_speed"]}</blockquote>\n\n'
         
     return schools_info, schools_elements_number

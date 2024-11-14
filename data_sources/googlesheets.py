@@ -169,7 +169,7 @@ async def city_saver(session: AsyncSession):
 @timeout(20)
 async def schools_saver(session: AsyncSession):
     schools_df = pd.from_gsheet(
-        spreadsheet_id=SPREADSHEET_ID, sheet_name="Школы", range_name="!A:U"
+        spreadsheet_id=SPREADSHEET_ID, sheet_name="Школы", range_name="!A:V"
     )
     schools_df.fillna("")
     schools_df["Широта"] = schools_df["Широта"].apply(
