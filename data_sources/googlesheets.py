@@ -118,18 +118,18 @@ async def city_saver(session: AsyncSession):
             arctic_zone = False if row["Арктическая зона"] == "" else True,
             latitude = float(row["широта"]),
             longitude = float(row["долгота"]),
-            fias = row["ФИАС"],
-            taksophone_address = str(row["Таксофон"]),
-            subsid_operator = row["оператор по субсидии"],
-            subsid_year = row["Субсидия Таня, год"],
-            selsovet = row["сельсовет"],
-            city_name_from_gosuslugi = row["адрес для кода"],
-            number_of_votes_ucn2023 = row["количество голосов"] if not pd.isna(row["количество голосов"]) else None,
-            date_of_update_ucn2023 = row["время записи"] if not pd.isna(row["время записи"]) else None,
-            rank_ucn2023 = row["место в рейтинге"] if not pd.isna(row["место в рейтинге"]) else None,
-            same_number_of_votes_ucn2023 = row["такое же количество голосов имеют"] if not pd.isna(row["такое же количество голосов имеют"]) else None,
-            television = row["Телевидение"],
-            radio = row["Радио"]))
+            fias = row["ФИАС"] if not pd.isna(row["ФИАС"]) else '',
+            taksophone_address = str(row["Таксофон"]) if not pd.isna(row["Таксофон"]) else '',
+            subsid_operator = row["оператор по субсидии"] if not pd.isna(row["оператор по субсидии"]) else '',
+            subsid_year = row["Субсидия Таня, год"] if not pd.isna(row["Субсидия Таня, год"]) else '',
+            selsovet = row["сельсовет"] if not pd.isna(row["сельсовет"]) else '',
+            city_name_from_gosuslugi = row["адрес для кода"] if not pd.isna(row["адрес для кода"]) else '',
+            number_of_votes_ucn2023 = row["количество голосов"] if not pd.isna(row["количество голосов"]) else '',
+            date_of_update_ucn2023 = row["время записи"] if not pd.isna(row["время записи"]) else '',
+            rank_ucn2023 = row["место в рейтинге"] if not pd.isna(row["место в рейтинге"]) else '',
+            same_number_of_votes_ucn2023 = row["такое же количество голосов имеют"] if not pd.isna(row["такое же количество голосов имеют"]) else '',
+            television = row["Телевидение"] if not pd.isna(row["Телевидение"]) else '',
+            radio = row["Радио"]) if not pd.isna(row["Радио"]) else '')
         await session.execute(to_db_query)
         await session.commit()
     
@@ -149,18 +149,18 @@ async def city_saver(session: AsyncSession):
                 arctic_zone = False if row["Арктическая зона"] == "" else True,
                 latitude = float(row["широта"]),
                 longitude = float(row["долгота"]),
-                fias = row["ФИАС"],
-                taksophone_address = str(row["Таксофон"]),
-                subsid_operator = row["оператор по субсидии"],
-                subsid_year = row["Субсидия Таня, год"],
-                selsovet = row["сельсовет"],
-                city_name_from_gosuslugi = row["адрес для кода"],
-                number_of_votes_ucn2023 = row["количество голосов"] if not pd.isna(row["количество голосов"]) else None,
-                date_of_update_ucn2023 = row["время записи"] if not pd.isna(row["время записи"]) else None,
-                rank_ucn2023 = row["место в рейтинге"] if not pd.isna(row["место в рейтинге"]) else None,
-                same_number_of_votes_ucn2023 = row["такое же количество голосов имеют"] if not pd.isna(row["такое же количество голосов имеют"]) else None,
-                television = row["Телевидение"],
-                radio = row["Радио"])).on_conflict_do_nothing()
+                fias = row["ФИАС"] if not pd.isna(row["ФИАС"]) else '',
+                taksophone_address = str(row["Таксофон"]) if not pd.isna(row["Таксофон"]) else '',
+                subsid_operator = row["оператор по субсидии"] if not pd.isna(row["оператор по субсидии"]) else '',
+                subsid_year = row["Субсидия Таня, год"] if not pd.isna(row["Субсидия Таня, год"]) else '',
+                selsovet = row["сельсовет"] if not pd.isna(row["сельсовет"]) else '',
+                city_name_from_gosuslugi = row["адрес для кода"] if not pd.isna(row["адрес для кода"]) else '',
+                number_of_votes_ucn2023 = row["количество голосов"] if not pd.isna(row["количество голосов"]) else '',
+                date_of_update_ucn2023 = row["время записи"] if not pd.isna(row["время записи"]) else '',
+                rank_ucn2023 = row["место в рейтинге"] if not pd.isna(row["место в рейтинге"]) else '',
+                same_number_of_votes_ucn2023 = row["такое же количество голосов имеют"] if not pd.isna(row["такое же количество голосов имеют"]) else '',
+                television = row["Телевидение"] if not pd.isna(row["Телевидение"]) else '',
+                radio = row["Радио"]) if not pd.isna(row["Радио"]) else '').on_conflict_do_nothing()
             await session.execute(to_db_query)
             await session.commit()
         
@@ -182,16 +182,16 @@ async def schools_saver(session: AsyncSession):
         
         to_db_query = update(Schools).where(Schools.school_id == int(row['ID'])).values(
             
-                city_id = int(row["ключ"]) if not pd.isna(row["ключ"]) else None,
-                school_number = row["№ объекта"],
-                school_id = int(row["ID"]),
-                school_adress = row["Адрес учреждения"],
-                latitude = float(row["Широта"]) if not pd.isna(row["Широта"]) else None,
-                longitude = float(row["Долгота"]) if not pd.isna(row["Долгота"]) else None,
-                type_of_institution = row["Тип учреждения"],
-                name_of_school = row["Полное наименование учреждения"],
-                internet_speed = row["Скорость подключения (план), Мбит/с"],
-                technology_type = row["Тип подключения"],
+                city_id = int(row["ключ"]) if not pd.isna(row["ключ"]) else '',
+                school_number = row["№ объекта"]  if not pd.isna(row["№ объекта"]) else '',
+                school_id = int(row["ID"]) if not pd.isna(row["ID"]) else '',
+                school_adress = row["Адрес учреждения"] if not pd.isna(row["Адрес учреждения"]) else '',
+                latitude = float(row["Широта"]) if not pd.isna(row["Широта"]) else '',
+                longitude = float(row["Долгота"]) if not pd.isna(row["Долгота"]) else '',
+                type_of_institution = row["Тип учреждения"] if not pd.isna(row["Тип учреждения"]) else '',
+                name_of_school = row["Полное наименование учреждения"] if not pd.isna(row["Полное наименование учреждения"]) else '',
+                internet_speed = row["Скорость подключения (план), Мбит/с"] if not pd.isna(row["Скорость подключения (план), Мбит/с"]) else '',
+                technology_type = row["Тип подключения"] if not pd.isna(row["Долгота"]) else '',
         )
         await session.execute(to_db_query)
         await session.commit()
@@ -202,16 +202,17 @@ async def schools_saver(session: AsyncSession):
     if result == []:
         for index, row in schools_df.iterrows():
             to_db_query = insert(Schools).values(
-                city_id = int(row["ключ"]) if not pd.isna(row["ключ"]) else None,
-                school_number = row["№ объекта"] if not pd.isna(row["№ объекта"]) else "",
-                school_id = int(row["ID"]) if not pd.isna(row["ID"]) else "",
-                school_adress = row["Адрес учреждения"],
-                latitude = float(row["Широта"]) if not pd.isna(row["Широта"]) else None,
-                longitude = float(row["Долгота"]) if not pd.isna(row["Долгота"]) else None,
-                type_of_institution = row["Тип учреждения"] if not pd.isna(row["Тип учреждения"]) else "",
-                name_of_school = row["Полное наименование учреждения"] if not pd.isna(row["Полное наименование учреждения"]) else "",
-                internet_speed = row["Скорость подключения (план), Мбит/с"] if not pd.isna(row["Скорость подключения (план), Мбит/с"]) else "",
-                technology_type = row["Тип подключения"],
+                city_id = int(row["ключ"]) if not pd.isna(row["ключ"]) else '',
+                school_number = row["№ объекта"]  if not pd.isna(row["№ объекта"]) else '',
+                school_id = int(row["ID"]) if not pd.isna(row["ID"]) else '',
+                school_adress = row["Адрес учреждения"] if not pd.isna(row["Адрес учреждения"]) else '',
+                latitude = float(row["Широта"]) if not pd.isna(row["Широта"]) else '',
+                longitude = float(row["Долгота"]) if not pd.isna(row["Долгота"]) else '',
+                type_of_institution = row["Тип учреждения"] if not pd.isna(row["Тип учреждения"]) else '',
+                name_of_school = row["Полное наименование учреждения"] if not pd.isna(row["Полное наименование учреждения"]) else '',
+                internet_speed = row["Скорость подключения (план), Мбит/с"] if not pd.isna(row["Скорость подключения (план), Мбит/с"]) else '',
+                technology_type = row["Тип подключения"] if not pd.isna(row["Долгота"]) else '',
+                
         ).on_conflict_do_nothing()
             await session.execute(to_db_query)
             await session.commit()

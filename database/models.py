@@ -17,8 +17,8 @@ class Cities(Base):
     population_2010: Mapped[str] = mapped_column(INTEGER, nullable=True)
     population_2020: Mapped[str] = mapped_column(INTEGER, nullable=True)
     arctic_zone: Mapped[BOOLEAN] = mapped_column(BOOLEAN, nullable=True)
-    latitude: Mapped[FLOAT] = mapped_column(FLOAT)
-    longitude: Mapped[FLOAT] = mapped_column(FLOAT)
+    latitude: Mapped[FLOAT] = mapped_column(FLOAT, nullable=True)
+    longitude: Mapped[FLOAT] = mapped_column(FLOAT, nullable=True)
     internet: Mapped[str] = mapped_column(String(255), nullable=True)
     tele2_level: Mapped[str] = mapped_column(String(10), nullable=True)
     mts_level: Mapped[str] = mapped_column(String(10), nullable=True)
@@ -28,7 +28,7 @@ class Cities(Base):
     mts_quality: Mapped[str] = mapped_column(String(255), nullable=True)
     beeline_quality: Mapped[str] = mapped_column(String(255), nullable=True)
     megafon_quality: Mapped[str] = mapped_column(String(255), nullable=True)
-    fias: Mapped[str] = mapped_column(String(255))
+    fias: Mapped[str] = mapped_column(String(255), nullable=True)
     taksophone_address: Mapped[str] = mapped_column(String(255), nullable=True)
     subsid_operator: Mapped[str] = mapped_column(String(255), nullable=True)
     subsid_year: Mapped[str] = mapped_column(String(255), nullable=True)
@@ -48,7 +48,7 @@ class Espd(Base):
     __tablename__ = 'espd'
     city_id: Mapped[int] = mapped_column(INTEGER, ForeignKey('cities.city_id'), nullable=True)
     espd_id: Mapped[str] = mapped_column(String(255), primary_key=True, nullable=True)
-    addres: Mapped[str] = mapped_column(String(255))
+    addres: Mapped[str] = mapped_column(String(255), nullable=True)
     technology_type: Mapped[str] = mapped_column(String(255), nullable=True)
     functional_customer: Mapped[str] = mapped_column(String(255), nullable=True)
     name_of_institution: Mapped[str] = mapped_column(String(255), nullable=True)
@@ -60,15 +60,15 @@ class Espd(Base):
 class Schools(Base):
     __tablename__ = 'schools'
     city_id: Mapped[int] = mapped_column(INTEGER, ForeignKey('cities.city_id'))
-    school_number: Mapped[str] = mapped_column(String(255))
+    school_number: Mapped[str] = mapped_column(String(255), nullable=True)
     school_id: Mapped[str] = mapped_column(INTEGER, primary_key=True)
-    school_adress: Mapped[str] = mapped_column(String(255))
+    school_adress: Mapped[str] = mapped_column(String(255), nullable=True)
     latitude: Mapped[FLOAT] = mapped_column(FLOAT, nullable=True)
     longitude: Mapped[FLOAT] = mapped_column(FLOAT, nullable=True)
-    type_of_institution: Mapped[str] = mapped_column(String(255))
-    name_of_school: Mapped[str] = mapped_column(String(255))
-    internet_speed: Mapped[str] = mapped_column(String(255))
-    technology_type: Mapped[str] = mapped_column(String(255))
+    type_of_institution: Mapped[str] = mapped_column(String(255), nullable=True)
+    name_of_school: Mapped[str] = mapped_column(String(255), nullable=True)
+    internet_speed: Mapped[str] = mapped_column(String(255), nullable=True)
+    technology_type: Mapped[str] = mapped_column(String(255), nullable=True)
     
     
     
@@ -123,8 +123,8 @@ class Ucn2025(Base):
     ucn2025_id: Mapped[int] = mapped_column(INTEGER, primary_key=True, autoincrement=True)
     city_id: Mapped[int] = mapped_column(INTEGER, ForeignKey('cities.city_id'), nullable=True)
     city_name_from_gosuslugi: Mapped[str] = mapped_column(String(255), nullable=True)
-    number_of_votes_ucn2025: Mapped[int] = mapped_column(INTEGER)
-    date_of_update_ucn2025: Mapped[DateTime] = mapped_column(TIMESTAMP)
+    number_of_votes_ucn2025: Mapped[int] = mapped_column(INTEGER, nullable=True)
+    date_of_update_ucn2025: Mapped[DateTime] = mapped_column(TIMESTAMP, nullable=True)
     
     
     
