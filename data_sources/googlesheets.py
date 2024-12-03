@@ -47,7 +47,7 @@ async def szoreg_saver(session: AsyncSession):
                     name_of_institution=row["Учреждение"],
                     internet_speed=row["Скорость"],
                     contract=row["Контракт"],
-                    changes=row["Изменение"],
+                    changes=row["Изменение"] if not pd.isna(row["Изменение"]) else "",
                 )
             )
 
@@ -69,7 +69,7 @@ async def szoreg_saver(session: AsyncSession):
                         name_of_institution=row["Учреждение"],
                         internet_speed=row["Скорость"],
                         contract=row["Контракт"],
-                        changes=row["Изменение"],
+                        changes=row["Изменение"] if not pd.isna(row["Изменение"]) else "",
                     )
                 ).on_conflict_do_nothing()
 
@@ -203,14 +203,14 @@ async def schools_saver(session: AsyncSession):
         for index, row in schools_df.iterrows():
             to_db_query = insert(Schools).values(
                 city_id = int(row["ключ"]) if not pd.isna(row["ключ"]) else None,
-                school_number = row["№ объекта"],
-                school_id = int(row["ID"]),
+                school_number = row["№ объекта"] if not pd.isna(row["№ объекта"]) else "",
+                school_id = int(row["ID"]) if not pd.isna(row["ID"]) else "",
                 school_adress = row["Адрес учреждения"],
                 latitude = float(row["Широта"]) if not pd.isna(row["Широта"]) else None,
                 longitude = float(row["Долгота"]) if not pd.isna(row["Долгота"]) else None,
-                type_of_institution = row["Тип учреждения"],
-                name_of_school = row["Полное наименование учреждения"],
-                internet_speed = row["Скорость подключения (план), Мбит/с"],
+                type_of_institution = row["Тип учреждения"] if not pd.isna(row["Тип учреждения"]) else "",
+                name_of_school = row["Полное наименование учреждения"] if not pd.isna(row["Полное наименование учреждения"]) else "",
+                internet_speed = row["Скорость подключения (план), Мбит/с"] if not pd.isna(row["Скорость подключения (план), Мбит/с"]) else "",
                 technology_type = row["Тип подключения"],
         ).on_conflict_do_nothing()
             await session.execute(to_db_query)
