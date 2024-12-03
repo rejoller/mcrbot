@@ -3,13 +3,12 @@ import logging
 import pandas as pd
 import requests
 import yadisk
-import os
+import asyncio
 
 from config import OAUTH_TOKEN
 from database.models import Cities
-from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import literal, update
+from sqlalchemy import update
 
 from utils.time_limiter import timeout
 
@@ -37,69 +36,76 @@ def exctract_quality_level(signal_info):
     
 timeout(40)
 async def load_subsidies_file(session: AsyncSession):
-    try:
-        y = yadisk.YaDisk(token=OAUTH_TOKEN)
-        file_path = '/Программы/Субсидия.xlsx'
-        if y.exists(file_path) and y.is_file(file_path):
-             
-            direct_url = y.get_download_link(file_path)
-            response = requests.get(direct_url)
-            response.raise_for_status()
-            df = pd.read_excel(BytesIO(response.content), sheet_name='показатель 504-п')
+
+    y = yadisk.YaDisk(token=OAUTH_TOKEN)
+    file_path = '/Программы/Субсидия.xlsx'
+    if y.exists(file_path) and y.is_file(file_path):
             
-            df['beeline_level'] = df['Билайн'].apply(lambda x: exctract_signal_level(x))
-            df['beeline_quality'] = df['Билайн'].apply(lambda x: exctract_quality_level(x))
+        direct_url = y.get_download_link(file_path)
+        response = requests.get(direct_url)
+        # response.raise_for_status()
+        table = BytesIO(response.content)
+        await asyncio.sleep(1)
+        df = pd.DataFrame()
+        
+        if table:
+            df = pd.read_excel(table, sheet_name='показатель 504-п')
+        
+        df['beeline_level'] = df['Билайн'].apply(lambda x: exctract_signal_level(x))
+        df['beeline_quality'] = df['Билайн'].apply(lambda x: exctract_quality_level(x))
+        
+        df['mts_level'] = df['МТС'].apply(lambda x: exctract_signal_level(x))
+        df['mts_quality'] = df['МТС'].apply(lambda x: exctract_quality_level(x))
+        
+        df['megafon_level'] = df['Мегафон'].apply(lambda x: exctract_signal_level(x))
+        df['megafon_quality'] = df['Мегафон'].apply(lambda x: exctract_quality_level(x))
+        
+        df['tele2_level'] = df['Теле2'].apply(lambda x: exctract_signal_level(x))
+        df['tele2_quality'] = df['Теле2'].apply(lambda x: exctract_quality_level(x))
+        
+        for index, row in df.iterrows():
+        
+            to_db_query = update(Cities).where(Cities.city_id == int(row['ключ'])).values(
+                city_id= int(row['ключ']),
+                beeline_level= row['beeline_level'],
+                beeline_quality= row['beeline_quality'],
+                mts_level= row['mts_level'],
+                mts_quality= row['mts_quality'],
+                megafon_level= row['megafon_level'],
+                megafon_quality= row['megafon_quality'],
+                tele2_level= row['tele2_level'],
+                tele2_quality= row['tele2_quality'])
             
-            df['mts_level'] = df['МТС'].apply(lambda x: exctract_signal_level(x))
-            df['mts_quality'] = df['МТС'].apply(lambda x: exctract_quality_level(x))
-            
-            df['megafon_level'] = df['Мегафон'].apply(lambda x: exctract_signal_level(x))
-            df['megafon_quality'] = df['Мегафон'].apply(lambda x: exctract_quality_level(x))
-            
-            df['tele2_level'] = df['Теле2'].apply(lambda x: exctract_signal_level(x))
-            df['tele2_quality'] = df['Теле2'].apply(lambda x: exctract_quality_level(x))
-            
-            for index, row in df.iterrows():
-            
-                to_db_query = update(Cities).where(Cities.city_id == int(row['ключ'])).values(
-                    city_id= int(row['ключ']),
-                    beeline_level= row['beeline_level'],
-                    beeline_quality= row['beeline_quality'],
-                    mts_level= row['mts_level'],
-                    mts_quality= row['mts_quality'],
-                    megafon_level= row['megafon_level'],
-                    megafon_quality= row['megafon_quality'],
-                    tele2_level= row['tele2_level'],
-                    tele2_quality= row['tele2_quality'])
+            try:
                 await session.execute(to_db_query)
                 await session.commit()
-    except Exception as e:
-        logging.info(f'Импорт сотовой связи не удался {e}')
+            except Exception as e:
+                logging.error(f'Ошибка при обновлении записи по субсидии, ключ населенного пункта {row['ключ']}, {e}')
+            
+            
+        logging.info('Импорт субсидий завершен')
+
         
-timeout(40)
+timeout(20)
 async def load_ucn_old_info(session: AsyncSession):
-    try:
-        y = yadisk.YaDisk(token=OAUTH_TOKEN)
-        file_path = '/Программы/Субсидия.xlsx'
-        if y.exists(file_path) and y.is_file(file_path):
-             
-            direct_url = y.get_download_link(file_path)
-            response = requests.get(direct_url)
-            response.raise_for_status()
-            df = pd.read_excel(BytesIO(response.content), sheet_name='УЦН 2.0')
-            df.dropna(subset=['Ключ'], inplace=True)
+    y = yadisk.YaDisk(token=OAUTH_TOKEN)
+    file_path = '/Программы/Субсидия.xlsx'
+    if y.exists(file_path) and y.is_file(file_path):
             
-            
-            for index, row in df.iterrows():
-                try:
-                    to_db_query = update(Cities).where(Cities.city_id == int(row['Ключ'])).values(
-                        city_id= int(row['Ключ']),
-                        ucn_old= str(row['Год']),
-                        ucn_old_description= row['Статус'])
-                    
-                    await session.execute(to_db_query)
-                    await session.commit()
-                except Exception as e:
-                    logging.info(f'Импорт УЦН не удался {e}')
-    except Exception as e:
-        logging.info(f'Импорт УЦН не удался {e}')
+        direct_url = y.get_download_link(file_path)
+        response = requests.get(direct_url)
+        response.raise_for_status()
+        df = pd.read_excel(BytesIO(response.content), sheet_name='УЦН 2.0')
+        df.dropna(subset=['Ключ'], inplace=True)
+        for index, row in df.iterrows():
+            to_db_query = update(Cities).where(Cities.city_id == int(row['Ключ'])).values(
+                city_id= int(row['Ключ']),
+                ucn_old= str(row['Год']),
+                ucn_old_description= row['Статус'])
+            try:
+                await session.execute(to_db_query)
+                await session.commit()
+            except Exception as e:
+                logging.error(f'Ошибка при обновлении записи по реализованному УЦН, ключ населенного пункта {row['ключ']}, {e}')
+                
+    logging.info('Импорт реализованного УЦН завершен')

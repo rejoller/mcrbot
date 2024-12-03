@@ -6,7 +6,7 @@ import os
 
 from aiogram import Dispatcher, Bot
 
-from config import BOT_TOKEN, INTERVAL_MIN, UCN_INTERVAL_MIN, REDIS_URL
+from config import BOT_TOKEN, INTERVAL_MIN, UCN_INTERVAL_MIN#, REDIS_URL
 from aiogram.fsm.storage.redis import RedisStorage
 
 from data_sources.yandex_disk import load_subsidies_file, load_ucn_old_info
@@ -24,7 +24,7 @@ from handlers import setup_routers
 
 
 
-storage = RedisStorage.from_url(REDIS_URL)
+# storage = RedisStorage.from_url(REDIS_URL)
 
 
 
@@ -44,14 +44,14 @@ async def on_startup():
             
             logging.info(f'on_startup завершена за {time.time() - start_time} секунд')
         except Exception as e:
-            logging.error(f'Failed to initialize and load data: {e}', exc_info=True)
+            logging.error(f'ошибка on_startup: {e}', exc_info=True)
             
 
 
 async def scheduled_ucn_votes_updater():
     async with session_maker() as session:
         await load_subsidies_file(session)
-        await ucn_votes_updater(session)
+        # await ucn_votes_updater(session)
         await load_ucn_old_info(session)
 
 
@@ -62,7 +62,7 @@ async def main():
     city_dict = get_city_dict()
     cities = city_dict
     bot = Bot(BOT_TOKEN)
-    dp = Dispatcher(storage=storage)
+    dp = Dispatcher()
     dp.update.middleware(DataBaseSession(session_pool=session_maker))
     dp.message.middleware(LoggingMiddleware())
     dp.update.middleware(CitiesMiddleware(session_pool=session_maker, cities=cities))
