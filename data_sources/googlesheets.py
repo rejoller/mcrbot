@@ -101,19 +101,14 @@ async def city_saver(session: AsyncSession):
         lambda x: int(x.replace("\xa0", "").replace(" ", "").replace("-", "0"))
     )
 
-    cities_df["количество голосов"] = cities_df["количество голосов"].apply(
-        lambda x: int(x) if pd.notnull(x) and x != "" else None
-    )
+    
+    
+    cities_df['место в рейтинге'] = pd.to_numeric(cities_df['место в рейтинге'], downcast='integer').astype('Int64')
+    
+    cities_df['количество голосов'] = pd.to_numeric(cities_df['количество голосов'], downcast='integer').astype('Int64')
+    cities_df['такое же количество голосов имеют'] = pd.to_numeric(cities_df['такое же количество голосов имеют'], downcast='integer').astype('Int64')
+    
 
-    cities_df["место в рейтинге"] = cities_df["место в рейтинге"].apply(
-        lambda x: int(x) if pd.notnull(x) and x != "" else None
-    )
-
-    cities_df["такое же количество голосов имеют"] = cities_df[
-        "такое же количество голосов имеют"
-    ].apply(lambda x: int(x) if pd.notnull(x) and x != "" else None)
-
-    cities_df.fillna("")
     for index, row in cities_df.iterrows():   
         to_db_query = (update(Cities).where(Cities.city_id == int(row['ключ'])).values(
             city_id = int(row["ключ"]),
@@ -131,10 +126,10 @@ async def city_saver(session: AsyncSession):
             subsid_year = row["Субсидия Таня, год"],
             selsovet = row["сельсовет"],
             city_name_from_gosuslugi = row["адрес для кода"],
-            number_of_votes_ucn2023 = row["количество голосов"] if not row["количество голосов"]=='' else None,
-            date_of_update_ucn2023 = row["время записи"],
-            rank_ucn2023 = row["место в рейтинге"] if not row["место в рейтинге"] =='' else None,
-            same_number_of_votes_ucn2023 = row["такое же количество голосов имеют"] if not row["такое же количество голосов имеют"] =='' else None,
+            # number_of_votes_ucn2023 = row["количество голосов"],
+            # date_of_update_ucn2023 = row["время записи"],
+            # rank_ucn2023 = row["место в рейтинге"],
+            # same_number_of_votes_ucn2023 = row["такое же количество голосов имеют"],
             television = row["Телевидение"],
             radio = row["Радио"]))
         try:
@@ -166,13 +161,13 @@ async def city_saver(session: AsyncSession):
                 subsid_year = row["Субсидия Таня, год"],
                 selsovet = row["сельсовет"],
                 city_name_from_gosuslugi = row["адрес для кода"],
-                number_of_votes_ucn2023 = row["количество голосов"] if not row["количество голосов"]=='' else None,
-                date_of_update_ucn2023 = row["время записи"],
-                rank_ucn2023 = row["место в рейтинге"] if not row["место в рейтинге"] =='' else None,
-                same_number_of_votes_ucn2023 = row["такое же количество голосов имеют"] if not row["такое же количество голосов имеют"] =='' else None,
+                # number_of_votes_ucn2023 = row["количество голосов"],
+                # date_of_update_ucn2023 = row["время записи"],
+                # rank_ucn2023 = row["место в рейтинге"],
+                # same_number_of_votes_ucn2023 = row["такое же количество голосов имеют"],
                 television = row["Телевидение"],
                 radio = row["Радио"])).on_conflict_do_nothing()
-                
+                    
             try:
                 await session.execute(to_db_query)
                 await session.commit()
@@ -205,15 +200,15 @@ async def schools_saver(session: AsyncSession):
         to_db_query = update(Schools).where(Schools.school_id == int(row['ID'])).values(
             
                 city_id = int(row["ключ"]) if not pd.isna(row["ключ"]) else None,
-                school_number = row["№ объекта"] if not row["№ объекта"]== '' else '',
-                school_id = int(row["ID"]) if not row["ID"] else None,
+                school_number = row["№ объекта"],
+                school_id = int(row["ID"]),
                 school_adress = row["Адрес учреждения"],
                 latitude = float(row["Широта"]) if not pd.isna(row["Широта"]) else None,
                 longitude = float(row["Долгота"]) if not pd.isna(row["Долгота"]) else None,
                 type_of_institution = row["Тип учреждения"],
                 name_of_school = row["Полное наименование учреждения"],
                 internet_speed = row["Скорость подключения (план), Мбит/с"],
-                technology_type = row["Тип подключения"] if not pd.isna(row["Тип подключения"]) else '',
+                technology_type = row["Тип подключения"],
         )
         try:
             await session.execute(to_db_query)
