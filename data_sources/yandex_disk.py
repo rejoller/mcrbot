@@ -80,7 +80,7 @@ async def load_subsidies_file(session: AsyncSession):
                 await session.execute(to_db_query)
                 await session.commit()
             except Exception as e:
-                logging.error(f'Ошибка при обновлении записи по субсидии, ключ населенного пункта {row['ключ']}, {e}')
+                logging.error(f'Ошибка при обновлении записи по субсидии, ключ населенного пункта {row["ключ"]}, {e}')
             
             
         logging.info('Импорт субсидий завершен')
@@ -106,6 +106,6 @@ async def load_ucn_old_info(session: AsyncSession):
                 await session.execute(to_db_query)
                 await session.commit()
             except Exception as e:
-                logging.error(f'Ошибка при обновлении записи по реализованному УЦН, ключ населенного пункта {row['ключ']}, {e}')
+                logging.error(f'Ошибка при обновлении записи по реализованному УЦН, ключ населенного пункта {row["ключ"]}, {e}')
                 
     logging.info('Импорт реализованного УЦН завершен')
