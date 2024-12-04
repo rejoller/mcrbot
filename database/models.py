@@ -60,8 +60,8 @@ class Espd(Base):
 class Schools(Base):
     __tablename__ = 'schools'
     city_id: Mapped[int] = mapped_column(INTEGER, ForeignKey('cities.city_id'))
-    school_number: Mapped[str] = mapped_column(String(255), nullable=True)
-    school_id: Mapped[str] = mapped_column(INTEGER, primary_key=True)
+    school_number: Mapped[str] = mapped_column(String(255), primary_key=True, nullable=True)
+    school_id: Mapped[str] = mapped_column(String(255), nullable=True)
     school_adress: Mapped[str] = mapped_column(String(255), nullable=True)
     latitude: Mapped[FLOAT] = mapped_column(FLOAT, nullable=True)
     longitude: Mapped[FLOAT] = mapped_column(FLOAT, nullable=True)

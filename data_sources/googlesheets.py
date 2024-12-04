@@ -8,7 +8,6 @@ from pathlib import Path
 
 from database.models import Cities, Espd, Schools
 
-from sqlalchemy import update, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -51,10 +50,9 @@ async def szoreg_saver(session: AsyncSession):
             "changes": row["Изменение"] if not row["Изменение"] == '' else "",
         }
 
-        # Использование insert...on conflict
         to_df_query = insert(Espd).values(row_data).on_conflict_do_update(
-            index_elements=["espd_id"],  # Укажите ключ, по которому проверяется конфликт
-            set_=row_data  # Значения для обновления при конфликте
+            index_elements=["espd_id"],
+            set_=row_data 
         )
 
         try:
@@ -82,7 +80,6 @@ async def city_saver(session: AsyncSession):
     )
     
     cities_df['место в рейтинге'] = pd.to_numeric(cities_df['место в рейтинге'], downcast='integer').astype('Int64')
-    
     cities_df['количество голосов'] = pd.to_numeric(cities_df['количество голосов'], downcast='integer').astype('Int64')
     cities_df['такое же количество голосов имеют'] = pd.to_numeric(cities_df['такое же количество голосов имеют'], downcast='integer').astype('Int64')
     
@@ -109,8 +106,8 @@ async def city_saver(session: AsyncSession):
         }
 
         to_db_query = insert(Cities).values(row_data).on_conflict_do_update(
-            index_elements=["city_id"],  # Указываем, что проверяем конфликт по `city_id`
-            set_=row_data  # Обновляем все значения, если запись уже существует
+            index_elements=["city_id"], 
+            set_=row_data  
         )
 
         try:
@@ -148,7 +145,7 @@ async def schools_saver(session: AsyncSession):
         row_data = {
             "city_id": int(row["ключ"]) if not pd.isna(row["ключ"]) else None,
             "school_number": row["№ объекта"],
-            "school_id": int(row["ID"]),
+            "school_id": row["ID"],
             "school_adress": row["Адрес учреждения"],
             "latitude": float(row["Широта"]) if not pd.isna(row["Широта"]) else None,
             "longitude": float(row["Долгота"]) if not pd.isna(row["Долгота"]) else None,
@@ -158,10 +155,9 @@ async def schools_saver(session: AsyncSession):
             "technology_type": row["Тип подключения"],
         }
 
-        # Используем insert...on conflict
         to_db_query = insert(Schools).values(row_data).on_conflict_do_update(
-            index_elements=["school_id"],  # Проверяем на конфликт по school_id
-            set_=row_data  # Обновляем данные при конфликте
+            index_elements=["school_number"],
+            set_=row_data
         )
 
         try:
